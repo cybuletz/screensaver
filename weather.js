@@ -2,7 +2,7 @@ class WeatherService {
     constructor() {
         this.cache = new Map();
         this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
-        console.log('[Weather] Service initialized');
+        console.log('[Weather] Service initialized (v2)'); // Added version number
     }
 
     async getWeather(city) {
@@ -20,9 +20,10 @@ class WeatherService {
         }
 
         console.log('[Weather] No cache or expired, fetching new data');
-        try {
-            const url = `/api/weather?city=${encodeURIComponent(city)}`;
-            console.log('[Weather] Fetching from URL:', url);
+		try {
+			const url = `/api/weather?city=${encodeURIComponent(city)}`;
+			console.log('[Weather] Full URL:', window.location.origin + url);  
+			console.log('[Weather] Fetching from URL:', url);
             
             const response = await fetch(url);
             console.log('[Weather] Response status:', response.status);
