@@ -427,18 +427,24 @@ button.primary {
             selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
         }
 
-        async function fetchAlbums() {
-            try {
-                const response = await fetch('/albums');
-                if (!response.ok) throw new Error('Failed to fetch albums');
-                const albums = await response.json();
-                displayAlbums(albums);
-            } catch (error) {
-                console.error('Error fetching albums:', error);
-                document.getElementById('albumList').innerHTML = 
-                    '<div class="error">Failed to load albums. Please try again.</div>';
-            }
-        }
+		async function fetchAlbums() {
+			try {
+				// Use the correct endpoint
+				const response = await fetch('/fetch-albums');
+				if (!response.ok) {
+					throw new Error(`Failed to fetch albums: ${response.status} ${response.statusText}`);
+				}
+				const albums = await response.json();
+				if (!albums || albums.length === 0) {
+					throw new Error('No albums found');
+				}
+				displayAlbums(albums);
+			} catch (error) {
+				console.error('Error fetching albums:', error);
+				document.getElementById('albumList').innerHTML = 
+					`<div class="error">Failed to load albums: ${error.message}</div>`;
+			}
+		}
 
         function displayAlbums(albums) {
             const albumList = document.getElementById('albumList');

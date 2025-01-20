@@ -62,6 +62,26 @@ app.get('/weather.js', (req, res) => {
 
 app.use(express.static(path.join(__dirname, '../')));
 
+app.get('/', (req, res) => {
+    try {
+        if (fs.existsSync('tokens.json')) {
+            const tokens = JSON.parse(fs.readFileSync('tokens.json'));
+            if (Date.now() < tokens.expiry_date) {
+                res.sendFile(path.join(__dirname, '../index.html'));
+                return;
+            }
+        }
+        res.redirect('/login');
+    } catch (error) {
+        console.error('Error checking authentication:', error);
+        res.redirect('/login');
+    }
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../login.html'));
+});
+
 app.get('/auth', (req, res) => {
     log('Auth route called');
     try {
@@ -310,9 +330,9 @@ app.get('/health', (req, res) => {
 
 // Weather API endpoint
 app.get('/api/weather', async (req, res) => {
-    log('Weather API endpoint called'); // Add this line
+    log('Weather API endpoint called');
     try {
-        const { city } = req.query;
+        const { city, units = 'metric' } = req.query;
         if (!city) {
             log('Weather API called without city parameter', true);
             return res.status(400).json({ error: 'City parameter is required' });
@@ -324,11 +344,10 @@ app.get('/api/weather', async (req, res) => {
             return res.status(500).json({ error: 'Weather API key not configured' });
         }
 
-        log(`Fetching weather data for city: ${city}`);
+        log(`Fetching weather data for city: ${city}, units: ${units}`);
         
-        // Use the existing retryOperation function for weather API calls
         const response = await retryOperation(async () => {
-            return await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}`);
+            return await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=${units}&appid=${apiKey}`);
         });
 
         if (!response.ok) {
@@ -340,11 +359,21 @@ app.get('/api/weather', async (req, res) => {
         const data = await response.json();
         log(`Successfully fetched weather data for ${city}`);
 
-        // Format the response
+        // Enhanced weather data response
         const weatherData = {
             temperature: Math.round(data.main.temp),
+            feelsLike: Math.round(data.main.feels_like),
+            humidity: data.main.humidity,
+            windSpeed: data.wind.speed,
+            windDirection: data.wind.deg,
+            pressure: data.main.pressure,
             condition: data.weather[0].main,
-            icon: data.weather[0].icon
+            description: data.weather[0].description,
+            icon: data.weather[0].icon,
+            sunrise: data.sys.sunrise * 1000, // Convert to milliseconds
+            sunset: data.sys.sunset * 1000,
+            units: units,
+            city: city
         };
 
         res.json(weatherData);
@@ -358,7 +387,7 @@ app.get('/api/weather', async (req, res) => {
 app.get('/api/forecast', async (req, res) => {
     log('Forecast API endpoint called');
     try {
-        const { city } = req.query;
+        const { city, units = 'metric', days = 3 } = req.query;
         if (!city) {
             log('Forecast API called without city parameter', true);
             return res.status(400).json({ error: 'City parameter is required' });
@@ -370,11 +399,10 @@ app.get('/api/forecast', async (req, res) => {
             return res.status(500).json({ error: 'Weather API key not configured' });
         }
 
-        log(`Fetching forecast data for city: ${city}`);
+        log(`Fetching forecast data for city: ${city}, units: ${units}, days: ${days}`);
         
-        // Use the existing retryOperation function for forecast API calls
         const response = await retryOperation(async () => {
-            return await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}`);
+            return await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=${units}&appid=${apiKey}`);
         });
 
         if (!response.ok) {
@@ -386,14 +414,20 @@ app.get('/api/forecast', async (req, res) => {
         const data = await response.json();
         log(`Successfully fetched forecast data for ${city}`);
 
-        // Process forecast data - get next 3 days
+        // Enhanced forecast data processing
         const forecast = data.list
-            .filter((item, index) => index % 8 === 0) // Get one reading per day (every 24 hours)
-            .slice(0, 3) // Get next 3 days
+            .filter((item, index) => index % 8 === 0) // Get one reading per day
+            .slice(0, parseInt(days)) // Get requested number of days
             .map(item => ({
-                date: item.dt * 1000, // Convert to milliseconds
+                date: item.dt * 1000,
                 temperature: Math.round(item.main.temp),
+                feelsLike: Math.round(item.main.feels_like),
+                humidity: item.main.humidity,
+                windSpeed: item.wind.speed,
+                windDirection: item.wind.deg,
+                pressure: item.main.pressure,
                 condition: item.weather[0].main,
+                description: item.weather[0].description,
                 icon: item.weather[0].icon
             }));
 
