@@ -12,13 +12,25 @@ require('dotenv').config();
 
 // Add new imports for authentication
 const mongoose = require('mongoose');
+const { Performance } = require('./features/metrics');
+const { ErrorLog, logError } = require('./features/errorLogger');
+const transitions = require('./features/transitions');
+
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { PhotoInfo } = require('./features/photoInfo');
+const SmartTimer = require('./features/smartTimer');
+const { Theme } = require('./features/themes');
+const ScreensaverScheduler = require('./features/scheduler');
+const { Analytics, AnalyticsManager } = require('./features/analytics');
 
 // MongoDB connection
 mongoose.connect('mongodb://localhost:27017/screensaver')
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
+
+const analyticsManager = new AnalyticsManager();
+const screensaverScheduler = new ScreensaverScheduler();
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -50,6 +62,9 @@ const userSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model('User', userSchema);
+
+const analyticsManager = new AnalyticsManager();
+const screensaverScheduler = new ScreensaverScheduler();
 
 const app = express();
 app.use(express.json());
@@ -110,6 +125,50 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
+
+app.get('/api/photo-info/:photoId', async (req, res) => {
+    try {
+        const photoInfo = await PhotoInfo.findOne({ photoId: req.params.photoId });
+        res.json(photoInfo);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch photo info' });
+    }
+});
+
+app.post('/api/themes', async (req, res) => {
+    try {
+        const theme = new Theme(req.body);
+        await theme.save();
+        res.json(theme);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save theme' });
+    }
+});
+
+// Theme endpoints
+app.post('/api/themes', authenticateToken, async (req, res) => {
+    try {
+        const theme = new Theme({
+            ...req.body,
+            userId: req.user.username
+        });
+        await theme.save();
+        res.json(theme);
+    } catch (error) {
+        console.error('Failed to save theme:', error);
+        res.status(500).json({ error: 'Failed to save theme' });
+    }
+});
+
+app.get('/api/themes', authenticateToken, async (req, res) => {
+    try {
+        const themes = await Theme.find({ userId: req.user.username });
+        res.json(themes);
+    } catch (error) {
+        console.error('Failed to fetch themes:', error);
+        res.status(500).json({ error: 'Failed to fetch themes' });
+    }
+});
 
 // Register endpoint
 app.post('/api/register', async (req, res) => {
@@ -183,6 +242,9 @@ app.get('/weather.js', (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.sendFile(path.join(__dirname, '../weather.js'));
 });
+
+// Serve static files from public directory
+app.use('/public', express.static(path.join(__dirname, '../public')));
 
 app.use(express.static(path.join(__dirname, '../')));
 
@@ -558,6 +620,28 @@ app.get('/api/forecast', async (req, res) => {
     } catch (error) {
         log(`Error fetching forecast: ${error.message}`, true);
         res.status(500).json({ error: 'Failed to fetch forecast data' });
+    }
+});
+
+// Smart Timer endpoint
+app.post('/api/viewing-stats', authenticateToken, async (req, res) => {
+    try {
+        const { photoId, viewDuration } = req.body;
+        const userId = req.user.username;
+
+        if (!photoId || typeof viewDuration !== 'number') {
+            return res.status(400).json({ 
+                error: 'Invalid parameters. Required: photoId (string) and viewDuration (number)' 
+            });
+        }
+
+        const smartTimer = new SmartTimer();
+        const nextInterval = await smartTimer.updateStats(userId, photoId, viewDuration);
+        
+        res.json({ nextInterval });
+    } catch (error) {
+        console.error('Smart timer error:', error);
+        res.status(500).json({ error: 'Failed to update viewing stats' });
     }
 });
 
