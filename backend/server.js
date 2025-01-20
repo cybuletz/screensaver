@@ -9,22 +9,16 @@ const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
 require('dotenv').config();
+
+// Add new imports for authentication
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-// Find this line:
-const app = express();
-
-// Add these lines right after it:
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 // MongoDB connection
-mongoose.connect('mongodb://localhost:27017/screensaver', {
-    // Remove the deprecated options
-    // useNewUrlParser and useUnifiedTopology are no longer needed
-});
+mongoose.connect('mongodb://localhost:27017/screensaver')
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -58,11 +52,14 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 
 const app = express();
-const PORT = 3000;
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Convert fs functions to promises
 const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
+
+const PORT = 3000;
 
 function log(message, error = false) {
     const timestamp = new Date().toISOString();
@@ -101,6 +98,86 @@ const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_U
 // Add OpenWeatherMap configuration
 require('dotenv').config();
 const DEFAULT_CITY = 'Bucharest';
+
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Authentication required' });
+    
+    jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+        req.user = user;
+        next();
+    });
+};
+
+// Register endpoint
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const existingUser = await User.findOne({ username });
+        
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = new User({
+            username,
+            password: hashedPassword
+        });
+        
+        await user.save();
+        res.status(201).json({ message: 'User created successfully' });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        const token = jwt.sign(
+            { username: user.username },
+            process.env.JWT_SECRET || 'your-secret-key',
+            { expiresIn: '24h' }
+        );
+        
+        res.json({
+            token,
+            settings: user.settings
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// Update settings endpoint
+app.put('/api/settings', authenticateToken, async (req, res) => {
+    try {
+        const { settings } = req.body;
+        const username = req.user.username;
+        
+        await User.findOneAndUpdate(
+            { username },
+            { $set: { settings } }
+        );
+        
+        res.json({ message: 'Settings updated successfully' });
+    } catch (error) {
+        console.error('Settings update error:', error);
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
+});
 
 app.get('/weather.js', (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -150,7 +227,6 @@ app.get('/oauth2callback', async (req, res) => {
     log(`OAuth2 callback received with code: ${code ? 'present' : 'missing'}`);
 
     try {
-        // Use retry for token fetch
         const { tokens } = await retryOperation(() => oAuth2Client.getToken(code));
         log('Tokens received from Google');
         log(`Access token present: ${!!tokens.access_token}`);
@@ -342,7 +418,7 @@ app.get('/fetch-albums', async (req, res) => {
     } catch (error) {
         log(`Error fetching albums: ${error.message}`, true);
         
-        if (error.message.includes('401')) {
+if (error.message.includes('401')) {
             log('Authorization error, redirecting to auth', true);
             return res.redirect('/auth');
         }
@@ -372,86 +448,6 @@ app.get('/health', (req, res) => {
     } catch (error) {
         log(`Health check failed: ${error.message}`, true);
         res.status(500).json({ status: 'error', message: error.message });
-    }
-});
-
-// Authentication middleware
-const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Authentication required' });
-    
-    jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
-        req.user = user;
-        next();
-    });
-};
-
-// Register endpoint
-app.post('/api/register', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const existingUser = await User.findOne({ username });
-        
-        if (existingUser) {
-            return res.status(400).json({ error: 'Username already exists' });
-        }
-        
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({
-            username,
-            password: hashedPassword
-        });
-        
-        await user.save();
-        res.status(201).json({ message: 'User created successfully' });
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ error: 'Registration failed' });
-    }
-});
-
-// Login endpoint
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const user = await User.findOne({ username });
-        
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-        
-        const token = jwt.sign(
-            { username: user.username },
-            process.env.JWT_SECRET || 'your-secret-key',
-            { expiresIn: '24h' }
-        );
-        
-        res.json({
-            token,
-            settings: user.settings
-        });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Login failed' });
-    }
-});
-
-// Update settings endpoint
-app.put('/api/settings', authenticateToken, async (req, res) => {
-    try {
-        const { settings } = req.body;
-        const username = req.user.username;
-        
-        await User.findOneAndUpdate(
-            { username },
-            { $set: { settings } }
-        );
-        
-        res.json({ message: 'Settings updated successfully' });
-    } catch (error) {
-        console.error('Settings update error:', error);
-        res.status(500).json({ error: 'Failed to update settings' });
     }
 });
 
