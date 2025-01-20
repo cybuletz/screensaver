@@ -105,565 +105,478 @@
             <img class="weather-icon" src="" alt="Weather">
         </div>
         <div class="weather-condition"></div>
-		<div class="weather-animation"></div>
-		<div id="weather-forecast" class="forecast-container">
-			<!-- Forecast will be inserted here -->
-		</div>
+        <div class="weather-animation"></div>
+        <div id="weather-forecast" class="forecast-container">
+            <!-- Forecast will be inserted here -->
+        </div>
         <div class="weather-animation"></div>
     </div>
-	
-<button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
-
+    
+    <button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
+    
     <script src="weather.js"></script>
-	<script src="/public/js/smartTimer.js"></script>
-<script src="/public/js/themeManager.js"></script>
+    <script src="/public/js/smartTimer.js"></script>
+    <script src="/public/js/themeManager.js"></script>
     <script>
-// Check authentication
-if (!localStorage.getItem('token')) {
-    window.location.href = 'login.html';
-}
-
-// Modify loadSettings function
-async function loadSettings() {
-    try {
-        const [settingsResponse, themesResponse] = await Promise.all([
-            fetch('/api/settings', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            }),
-            fetch('/api/themes', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            })
-        ]);
-        
-        if (!settingsResponse.ok || !themesResponse.ok) {
-            if (settingsResponse.status === 401 || themesResponse.status === 401) {
-                window.location.href = 'login.html';
-                return;
-            }
-            throw new Error('Failed to load settings or themes');
-        }
-        
-        const settingsData = await settingsResponse.json();
-        const themes = await themesResponse.json();
-        
-        settings = settingsData.settings || {
-            // ... your existing default settings ...
-        };
-        
-        // Apply current theme if exists
-        const currentTheme = themes.find(t => t.isDefault) || themes[0];
-        if (currentTheme) {
-            themeManager.applyTheme(currentTheme);
-        }
-        
-        applySettings();
-    } catch (error) {
-        console.error('Error loading settings:', error);
+    // Check authentication
+    if (!localStorage.getItem('token')) {
+        window.location.href = 'login.html';
     }
-}
-        
 
-			async function loadSettings() {
-				try {
-					const [settingsResponse, themesResponse] = await Promise.all([
-						fetch('/api/settings', {
-							headers: {
-								'Authorization': `Bearer ${localStorage.getItem('token')}`
-							}
-						}),
-						fetch('/api/themes', {
-							headers: {
-								'Authorization': `Bearer ${localStorage.getItem('token')}`
-							}
-						})
-					]);
-					
-					if (!settingsResponse.ok || !themesResponse.ok) {
-						if (settingsResponse.status === 401 || themesResponse.status === 401) {
-							window.location.href = 'login.html';
-							return;
-						}
-						throw new Error('Failed to load settings or themes');
-					}
-					
-					const settingsData = await settingsResponse.json();
-					const themes = await themesResponse.json();
-					
-					settings = settingsData.settings || {
-						// ... your existing default settings ...
-					};
-					
-					// Apply current theme if exists
-					const currentTheme = themes.find(t => t.isDefault) || themes[0];
-					if (currentTheme) {
-						themeManager.applyTheme(currentTheme);
-					}
-					
-					applySettings();
-				} catch (error) {
-					console.error('Error loading settings:', error);
-				}
-			}
+    let currentIndex = 0;
+    let photoData = [];
+    let intervalId = null;
+    let clockIntervalId = null;
+    let weatherIntervalId = null;
+    let settings = null;
+    let weatherService = null;
+    const smartTimer = new SmartTimerClient();
+    let currentPhotoStartTime = null;
+    const themeManager = new ThemeManager();
 
-			let currentIndex = 0;
-			let photoData = [];
-			let intervalId = null;
-
-			let currentIndex = 0;
-			let photoData = [];
-			let intervalId = null;
-			let clockIntervalId = null;
-			let weatherIntervalId = null;
-			let settings = null;
-			let weatherService = null;
-			const smartTimer = new SmartTimerClient();
-			let currentPhotoStartTime = null;
-                        const themeManager = new ThemeManager();
-			
-async function loadSettings() {
-    try {
-        const response = await fetch('/api/settings', {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+    async function loadSettings() {
+        try {
+            const [settingsResponse, themesResponse] = await Promise.all([
+                fetch('/api/settings', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                }),
+                fetch('/api/themes', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                })
+            ]);
+            
+            if (!settingsResponse.ok || !themesResponse.ok) {
+                if (settingsResponse.status === 401 || themesResponse.status === 401) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                throw new Error('Failed to load settings or themes');
             }
-        });
-        
-        if (!response.ok) {
-            if (response.status === 401) {
-                window.location.href = 'login.html';
-                return;
+            
+            const settingsData = await settingsResponse.json();
+            const themes = await themesResponse.json();
+            
+            settings = settingsData.settings || {
+                resolution: 'auto',
+                fitMode: 'cover',
+                showClock: true,
+                clockStyle: 'digital',
+                clockFormat: '24',
+                clockPosition: 'bottom-right',
+                clockColor: '#ffffff',
+                clockSize: 'medium',
+                interval: 30,
+                transition: 'fade',
+                transitionDuration: 1,
+                shuffle: true,
+                enableSchedule: false,
+                startTime: '09:00',
+                endTime: '17:00',
+                daysActive: [1, 2, 3, 4, 5],
+                showWeather: true,
+                weatherCity: 'Bucharest',
+                weatherPosition: 'top-right',
+                showForecast: false,
+                kioskMode: false
+            };
+            
+            if (settings.kioskMode) {
+                document.body.style.cursor = 'none';
+                document.addEventListener('contextmenu', e => e.preventDefault());
             }
-            throw new Error('Failed to load settings');
-        }
-        
-        settings = await response.json() || {
-            resolution: 'auto',
-            fitMode: 'cover',
-            showClock: true,
-            clockStyle: 'digital',
-            clockFormat: '24',
-            clockPosition: 'bottom-right',
-            clockColor: '#ffffff',
-            clockSize: 'medium',
-            interval: 30,
-            transition: 'fade',
-            transitionDuration: 1,
-            shuffle: true,
-            enableSchedule: false,
-            startTime: '09:00',
-            endTime: '17:00',
-            daysActive: [1,2,3,4,5],
-            showWeather: true,
-            weatherCity: 'Bucharest',
-            weatherPosition: 'top-right',
-            showForecast: false,
-            kioskMode: false
-        };
-        
-        if (settings.kioskMode) {
-            document.body.style.cursor = 'none';
-            document.addEventListener('contextmenu', e => e.preventDefault());
-        }
-        
-        // Load and apply theme
-        const themeResponse = await fetch('/api/themes', {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-        
-        if (themeResponse.ok) {
-            const themes = await themeResponse.json();
+            
+            // Apply current theme if exists
             const currentTheme = themes.find(t => t.isDefault) || themes[0];
             if (currentTheme) {
                 themeManager.applyTheme(currentTheme);
             }
+            
+            applySettings();
+        } catch (error) {
+            console.error('Error loading settings:', error);
         }
-        
-        applySettings();
-    } catch (error) {
-        console.error('Error loading settings:', error);
     }
-}
 
-        function applySettings() {
-            // Apply transition styles
-            const style = document.createElement('style');
-            let transitionStyle = '';
-            
-            switch(settings.transition) {
-                case 'fade':
-                    transitionStyle = `opacity ${settings.transitionDuration}s`;
-                    break;
-                case 'slide':
-                    transitionStyle = `opacity ${settings.transitionDuration}s, transform ${settings.transitionDuration}s`;
-                    break;
-                case 'zoom':
-                    transitionStyle = `opacity ${settings.transitionDuration}s, transform ${settings.transitionDuration}s`;
-                    break;
-                case 'blur':
-                    transitionStyle = `opacity ${settings.transitionDuration}s, filter ${settings.transitionDuration}s`;
-                    break;
-            }
-style.textContent = `.photo { transition: ${transitionStyle}; }`;
-            document.head.appendChild(style);
-
-            // Apply clock settings
-            const clockOverlay = document.querySelector('.clock-overlay');
-            clockOverlay.className = `clock-overlay ${settings.clockPosition}`;
-            clockOverlay.style.color = settings.clockColor;
-            clockOverlay.style.fontSize = 
-                settings.clockSize === 'small' ? '24px' : 
-                settings.clockSize === 'medium' ? '36px' : '48px';
-
-            // Apply weather settings
-            const weatherContainer = document.getElementById('weather');
-            const forecastContainer = document.getElementById('weather-forecast');
-            
-            if (settings.showWeather) {
-                weatherContainer.style.display = 'block';
-                weatherContainer.className = `weather-container weather-${settings.weatherPosition}`;
-                forecastContainer.style.display = settings.showForecast ? 'flex' : 'none';
-            } else {
-                weatherContainer.style.display = 'none';
-            }
-
-            // Initialize clock if enabled
-            if (settings.showClock) {
-                if (clockIntervalId) clearInterval(clockIntervalId);
-                updateClock();
-                clockIntervalId = setInterval(updateClock, 1000);
-            }
-
-            // Initialize weather if enabled
-            if (settings.showWeather) {
-                if (weatherIntervalId) clearInterval(weatherIntervalId);
-                updateWeather();
-                weatherIntervalId = setInterval(updateWeather, 30 * 60 * 1000); // Update every 30 minutes
-            }
-
-            // Apply resolution settings
-            if (settings.resolution !== 'auto') {
-                const [width, height] = settings.resolution.split('x');
-                document.querySelector('.photo-container').style.width = `${width}px`;
-                document.querySelector('.photo-container').style.height = `${height}px`;
-            }
-        }
-
-        function updateClock() {
-            const clockOverlay = document.querySelector('.clock-overlay');
-            const now = new Date();
-            
-            if (settings.clockStyle === 'digital') {
-                const timeString = settings.clockFormat === '24' ? 
-                    now.toLocaleTimeString('en-US', { hour12: false }) :
-                    now.toLocaleTimeString('en-US', { hour12: true });
-                const dateString = now.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                });
-                clockOverlay.innerHTML = `
-                    <div class="clock-digital">
-                        <div>${timeString}</div>
-                        <div style="font-size: 0.5em">${dateString}</div>
-                    </div>
-                `;
-            } else {
-                const hours = now.getHours() % 12;
-                const minutes = now.getMinutes();
-                clockOverlay.innerHTML = `
-                    <div class="clock-analog">
-                        <div class="hour-hand" style="transform: rotate(${(hours * 30) + (minutes / 2)}deg)"></div>
-                        <div class="minute-hand" style="transform: rotate(${minutes * 6}deg)"></div>
-                    </div>
-                `;
-            }
-        }
-
-        function getScreenProperties() {
-            const dpr = window.devicePixelRatio || 1;
-            return {
-                width: Math.round(screen.width * dpr),
-                height: Math.round(screen.height * dpr),
-                pixelRatio: dpr
-            };
-        }
 async function preloadPhotos(photos) {
-            const container = document.querySelector('.photo-container');
-            container.innerHTML = '';
-            
-            const loadingPromises = [];
+        const container = document.querySelector('.photo-container');
+        container.innerHTML = '';
+        
+        const loadingPromises = [];
 
-            photos.forEach((photo, index) => {
-                const img = document.createElement('img');
-                img.className = 'photo';
-                img.style.objectFit = settings.fitMode;
-                
-                const loadPromise = new Promise((resolve, reject) => {
-                    img.onload = () => {
-                        console.log(`Loaded photo ${index + 1}/${photos.length}`);
-                        resolve();
-                    };
-                    img.onerror = () => {
-                        console.error(`Failed to load photo ${index + 1}/${photos.length}`);
-                        reject();
-                    };
-                });
-                
-                loadingPromises.push(loadPromise);
-                
-                if (index === 0) {
-                    img.classList.add('active');
-                }
-                
-                img.style.imageRendering = 'high-quality';
-                img.decoding = 'async';
-                img.loading = 'eager';
-                img.src = photo.baseUrl;
-                
-                container.appendChild(img);
+        photos.forEach((photo, index) => {
+            const img = document.createElement('img');
+            img.className = 'photo';
+            img.style.objectFit = settings.fitMode;
+            
+            const loadPromise = new Promise((resolve, reject) => {
+                img.onload = () => {
+                    console.log(`Loaded photo ${index + 1}/${photos.length}`);
+                    resolve();
+                };
+                img.onerror = () => {
+                    console.error(`Failed to load photo ${index + 1}/${photos.length}`);
+                    reject();
+                };
             });
-
-            try {
-                await Promise.all(loadingPromises.slice(0, 3));
-                console.log('Initial images loaded successfully');
-            } catch (error) {
-                console.error('Some initial images failed to load');
+            
+            loadingPromises.push(loadPromise);
+            
+            if (index === 0) {
+                img.classList.add('active');
             }
+            
+            img.style.imageRendering = 'high-quality';
+            img.decoding = 'async';
+            img.loading = 'eager';
+            img.src = photo.baseUrl;
+            
+            container.appendChild(img);
+        });
 
-            if (intervalId) clearInterval(intervalId);
-            intervalId = setInterval(showNextPhoto, settings.interval * 1000);
+        try {
+            await Promise.all(loadingPromises.slice(0, 3));
+            console.log('Initial images loaded successfully');
+        } catch (error) {
+            console.error('Some initial images failed to load');
         }
 
-        async function updateWeather() {
-            if (!settings.showWeather || !settings.weatherCity) {
-                console.log('[Weather] Weather display is disabled or no city configured');
-                return;
-            }
+        if (intervalId) clearInterval(intervalId);
+        intervalId = setInterval(showNextPhoto, settings.interval * 1000);
+    }
 
-            if (!weatherService) {
-                console.log('[Weather] Initializing weather service...');
-                weatherService = new WeatherService();
-            }
+    async function updateWeather() {
+        if (!settings.showWeather || !settings.weatherCity) {
+            console.log('[Weather] Weather display is disabled or no city configured');
+            return;
+        }
 
-            try {
-                console.log(`[Weather] Fetching weather data for ${settings.weatherCity}...`);
-                const weatherData = await weatherService.getWeather(settings.weatherCity);
-                console.log('[Weather] Received weather data:', weatherData);
-                
-                document.querySelector('.weather-city').textContent = settings.weatherCity;
-                document.querySelector('.weather-temp').textContent = `${weatherData.temperature}°C`;
-                document.querySelector('.weather-condition').textContent = weatherData.condition;
-                document.querySelector('.weather-icon').src = `https://openweathermap.org/img/w/${weatherData.icon}.png`;
+        if (!weatherService) {
+            console.log('[Weather] Initializing weather service...');
+            weatherService = new WeatherService();
+        }
 
-                // Update weather animation
-                const animationContainer = document.querySelector('.weather-animation');
-                const animationClass = weatherService.getWeatherAnimation(weatherData.condition);
-                animationContainer.className = `weather-animation ${animationClass}`;
+        try {
+            console.log(`[Weather] Fetching weather data for ${settings.weatherCity}...`);
+            const weatherData = await weatherService.getWeather(settings.weatherCity);
+            console.log('[Weather] Received weather data:', weatherData);
+            
+            document.querySelector('.weather-city').textContent = settings.weatherCity;
+            document.querySelector('.weather-temp').textContent = `${weatherData.temperature}°C`;
+            document.querySelector('.weather-condition').textContent = weatherData.condition;
+            document.querySelector('.weather-icon').src = `https://openweathermap.org/img/w/${weatherData.icon}.png`;
 
-                // Update forecast if enabled
-                if (settings.showForecast) {
-                    const forecast = await weatherService.getForecast(settings.weatherCity);
-                    const forecastContainer = document.getElementById('weather-forecast');
-                    forecastContainer.innerHTML = forecast.map(day => `
-                        <div class="forecast-day">
-                            <div class="forecast-date">${new Date(day.date).toLocaleDateString('en-US', {weekday: 'short'})}</div>
-                            <div class="forecast-icon">
-                                <img src="https://openweathermap.org/img/w/${day.icon}.png" alt="${day.condition}">
-                            </div>
-                            <div class="forecast-temp">${day.temperature}°C</div>
+            // Update weather animation
+            const animationContainer = document.querySelector('.weather-animation');
+            const animationClass = weatherService.getWeatherAnimation(weatherData.condition);
+            animationContainer.className = `weather-animation ${animationClass}`;
+
+            // Update forecast if enabled
+            if (settings.showForecast) {
+                const forecast = await weatherService.getForecast(settings.weatherCity);
+                const forecastContainer = document.getElementById('weather-forecast');
+                forecastContainer.innerHTML = forecast.map(day => `
+                    <div class="forecast-day">
+                        <div class="forecast-date">${new Date(day.date).toLocaleDateString('en-US', {weekday: 'short'})}</div>
+                        <div class="forecast-icon">
+                            <img src="https://openweathermap.org/img/w/${day.icon}.png" alt="${day.condition}">
                         </div>
-                    `).join('');
-                }
+                        <div class="forecast-temp">${day.temperature}°C</div>
+                    </div>
+                `).join('');
+            }
+        } catch (error) {
+            console.error('[Weather] Error updating weather:', error);
+            document.getElementById('weather').innerHTML = `<div class="weather-error">Weather unavailable</div>`;
+        }
+    }
+
+    async function fetchPhotos(albumIds) {
+        photoData = [];
+        const screen = getScreenProperties();
+        
+        for (const albumId of albumIds) {
+            try {
+                const response = await fetch(`/fetch-photos?albumId=${albumId}&width=${screen.width}&height=${screen.height}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const photos = await response.json();
+                photoData.push(...photos);
+                console.log(`Fetched ${photos.length} photos from album ${albumId}`);
             } catch (error) {
-                console.error('[Weather] Error updating weather:', error);
-                document.getElementById('weather').innerHTML = `<div class="weather-error">Weather unavailable</div>`;
+                console.error(`Error fetching album ${albumId}:`, error);
             }
         }
 
-        async function fetchPhotos(albumIds) {
-            photoData = [];
+        if (settings.shuffle) {
+            photoData = shuffle(photoData);
+        }
+
+        if (photoData.length > 0) {
+            await preloadPhotos(photoData);
+        } else {
+            console.error('No photos were fetched from any album');
+        }
+    }
+
+    function applySettings() {
+        // Apply transition styles
+        const style = document.createElement('style');
+        let transitionStyle = '';
+        
+        switch(settings.transition) {
+            case 'fade':
+                transitionStyle = `opacity ${settings.transitionDuration}s`;
+                break;
+            case 'slide':
+                transitionStyle = `opacity ${settings.transitionDuration}s, transform ${settings.transitionDuration}s`;
+                break;
+            case 'zoom':
+                transitionStyle = `opacity ${settings.transitionDuration}s, transform ${settings.transitionDuration}s`;
+                break;
+            case 'blur':
+                transitionStyle = `opacity ${settings.transitionDuration}s, filter ${settings.transitionDuration}s`;
+                break;
+        }
+        style.textContent = `.photo { transition: ${transitionStyle}; }`;
+        document.head.appendChild(style);
+
+        // Apply clock settings
+        const clockOverlay = document.querySelector('.clock-overlay');
+        clockOverlay.className = `clock-overlay ${settings.clockPosition}`;
+        clockOverlay.style.color = settings.clockColor;
+        clockOverlay.style.fontSize = 
+            settings.clockSize === 'small' ? '24px' : 
+            settings.clockSize === 'medium' ? '36px' : '48px';
+
+        // Apply weather settings
+        const weatherContainer = document.getElementById('weather');
+        const forecastContainer = document.getElementById('weather-forecast');
+        
+        if (settings.showWeather) {
+            weatherContainer.style.display = 'block';
+            weatherContainer.className = `weather-container weather-${settings.weatherPosition}`;
+            forecastContainer.style.display = settings.showForecast ? 'flex' : 'none';
+        } else {
+            weatherContainer.style.display = 'none';
+        }
+
+        // Initialize clock if enabled
+        if (settings.showClock) {
+            if (clockIntervalId) clearInterval(clockIntervalId);
+            updateClock();
+            clockIntervalId = setInterval(updateClock, 1000);
+        }
+
+        // Initialize weather if enabled
+        if (settings.showWeather) {
+            if (weatherIntervalId) clearInterval(weatherIntervalId);
+            updateWeather();
+            weatherIntervalId = setInterval(updateWeather, 30 * 60 * 1000); // Update every 30 minutes
+        }
+
+        // Apply resolution settings
+        if (settings.resolution !== 'auto') {
+            const [width, height] = settings.resolution.split('x');
+            document.querySelector('.photo-container').style.width = `${width}px`;
+            document.querySelector('.photo-container').style.height = `${height}px`;
+        }
+    }
+
+    function updateClock() {
+        const clockOverlay = document.querySelector('.clock-overlay');
+        const now = new Date();
+        
+        if (settings.clockStyle === 'digital') {
+            const timeString = settings.clockFormat === '24' ? 
+                now.toLocaleTimeString('en-US', { hour12: false }) :
+                now.toLocaleTimeString('en-US', { hour12: true });
+            const dateString = now.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            clockOverlay.innerHTML = `
+                <div class="clock-digital">
+                    <div>${timeString}</div>
+                    <div style="font-size: 0.5em">${dateString}</div>
+                </div>
+            `;
+        } else {
+            const hours = now.getHours() % 12;
+            const minutes = now.getMinutes();
+            clockOverlay.innerHTML = `
+                <div class="clock-analog">
+                    <div class="hour-hand" style="transform: rotate(${(hours * 30) + (minutes / 2)}deg)"></div>
+                    <div class="minute-hand" style="transform: rotate(${minutes * 6}deg)"></div>
+                </div>
+            `;
+        }
+    }
+
+    function getScreenProperties() {
+        const dpr = window.devicePixelRatio || 1;
+        return {
+            width: Math.round(screen.width * dpr),
+            height: Math.round(screen.height * dpr),
+            pixelRatio: dpr
+        };
+    }
+
+    function checkSchedule() {
+        if (!settings.enableSchedule) return true;
+
+        const now = new Date();
+        const currentDay = now.getDay();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
+        
+        const [startHour, startMinute] = settings.startTime.split(':');
+        const [endHour, endMinute] = settings.endTime.split(':');
+        const startTimeMinutes = parseInt(startHour) * 60 + parseInt(startMinute);
+        const endTimeMinutes = parseInt(endHour) * 60 + parseInt(endMinute);
+
+        return settings.daysActive.includes(currentDay) && 
+               currentTime >= startTimeMinutes && 
+               currentTime <= endTimeMinutes;
+    }
+
+    function showScheduleMessage() {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'schedule-message';
+        messageDiv.textContent = 'Screensaver is scheduled to run during specific hours only.';
+        document.body.appendChild(messageDiv);
+    }
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    async function showNextPhoto() {
+        if (!checkSchedule()) {
+            showScheduleMessage();
+            return;
+        }
+
+        // End timing for current photo if exists
+        if (currentPhotoStartTime) {
+            const nextInterval = await smartTimer.endPhotoView();
+            if (intervalId) clearTimeout(intervalId);
+            intervalId = setTimeout(showNextPhoto, nextInterval);
+        }
+
+        const photos = document.querySelectorAll('.photo');
+        const currentPhoto = photos[currentIndex];
+        const nextIndex = (currentIndex + 1) % photos.length;
+        const nextPhoto = photos[nextIndex];
+
+        switch(settings.transition) {
+            case 'slide':
+                nextPhoto.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    currentPhoto.style.transform = 'translateX(-100%)';
+                    nextPhoto.style.transform = 'translateX(0)';
+                }, 50);
+                break;
+            case 'zoom':
+                nextPhoto.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    nextPhoto.style.transform = 'scale(1)';
+                }, 50);
+                break;
+            case 'blur':
+                currentPhoto.style.filter = 'blur(10px)';
+                nextPhoto.style.filter = 'blur(0)';
+                break;
+        }
+
+        currentPhoto.classList.remove('active');
+        nextPhoto.classList.add('active');
+        currentIndex = nextIndex;
+
+        // Start timing for new photo
+        currentPhotoStartTime = Date.now();
+        smartTimer.startPhotoView(photoData[currentIndex].id);
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async function () {
+        console.log('Initializing application...');
+        await loadSettings();
+        const selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
+        
+        if (selectedAlbums.length > 0) {
+            console.log(`Loading ${selectedAlbums.length} selected albums`);
+            await fetchPhotos(selectedAlbums);
+        } else {
+            console.log('No albums selected. Please configure settings.');
+        }
+    });
+
+    // Handle keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        switch(e.key) {
+            case 'ArrowRight':
+                showNextPhoto();
+                break;
+            case 'Escape':
+                window.location.href = '/settings.html';
+                break;
+        }
+    });
+
+    // Handle window resize
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
             const screen = getScreenProperties();
-            
-            for (const albumId of albumIds) {
-                try {
-                    const response = await fetch(`/fetch-photos?albumId=${albumId}&width=${screen.width}&height=${screen.height}`);
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    const photos = await response.json();
-                    photoData.push(...photos);
-                    console.log(`Fetched ${photos.length} photos from album ${albumId}`);
-                } catch (error) {
-                    console.error(`Error fetching album ${albumId}:`, error);
-                }
+            console.log(`Screen resized to ${screen.width}x${screen.height} (${screen.pixelRatio}x)`);
+            if (settings.resolution === 'auto') {
+                document.querySelector('.photo-container').style.width = '100%';
+                document.querySelector('.photo-container').style.height = '100%';
             }
-
-            if (settings.shuffle) {
-                photoData = shuffle(photoData);
-            }
-
             if (photoData.length > 0) {
-                await preloadPhotos(photoData);
-            } else {
-                console.error('No photos were fetched from any album');
+                const selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
+                fetchPhotos(selectedAlbums);
             }
-        }
+        }, 1000);
+    });
 
-        function checkSchedule() {
-            if (!settings.enableSchedule) return true;
-
-            const now = new Date();
-            const currentDay = now.getDay();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
-            
-            const [startHour, startMinute] = settings.startTime.split(':');
-            const [endHour, endMinute] = settings.endTime.split(':');
-            const startTimeMinutes = parseInt(startHour) * 60 + parseInt(startMinute);
-            const endTimeMinutes = parseInt(endHour) * 60 + parseInt(endMinute);
-
-            return settings.daysActive.includes(currentDay) && 
-                   currentTime >= startTimeMinutes && 
-                   currentTime <= endTimeMinutes;
-        }
-
-        function showScheduleMessage() {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'schedule-message';
-            messageDiv.textContent = 'Screensaver is scheduled to run during specific hours only.';
-            document.body.appendChild(messageDiv);
-        }
-
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
-
-        async function showNextPhoto() {
-    if (!checkSchedule()) {
-        showScheduleMessage();
-        return;
+    // Cleanup function
+    function cleanup() {
+        if (intervalId) clearInterval(intervalId);
+        if (clockIntervalId) clearInterval(clockIntervalId);
+        if (weatherIntervalId) clearInterval(weatherIntervalId);
+        if (weatherService) weatherService.clearCache();
     }
 
-    // End timing for current photo if exists
-    if (currentPhotoStartTime) {
-        const nextInterval = await smartTimer.endPhotoView();
-        if (intervalId) clearTimeout(intervalId);
-        intervalId = setTimeout(showNextPhoto, nextInterval);
-    }
+    // Add cleanup on page unload
+    window.addEventListener('unload', cleanup);
 
-    const photos = document.querySelectorAll('.photo');
-    const currentPhoto = photos[currentIndex];
-    const nextIndex = (currentIndex + 1) % photos.length;
-    const nextPhoto = photos[nextIndex];
-
-    switch(settings.transition) {
-        case 'slide':
-            nextPhoto.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                currentPhoto.style.transform = 'translateX(-100%)';
-                nextPhoto.style.transform = 'translateX(0)';
-            }, 50);
-            break;
-        case 'zoom':
-            nextPhoto.style.transform = 'scale(1.2)';
-            setTimeout(() => {
-                nextPhoto.style.transform = 'scale(1)';
-            }, 50);
-            break;
-        case 'blur':
-            currentPhoto.style.filter = 'blur(10px)';
-            nextPhoto.style.filter = 'blur(0)';
-            break;
-    }
-
-    currentPhoto.classList.remove('active');
-    nextPhoto.classList.add('active');
-    currentIndex = nextIndex;
-
-    // Start timing for new photo
-    currentPhotoStartTime = Date.now();
-    smartTimer.startPhotoView(photoData[currentIndex].id);
-}
-
-// Initialize
-document.addEventListener('DOMContentLoaded', async function () {
-    console.log('Initializing application...');
-    await loadSettings();
-    const selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
-    
-    if (selectedAlbums.length > 0) {
-        console.log(`Loading ${selectedAlbums.length} selected albums`);
-        await fetchPhotos(selectedAlbums);
-    } else {
-        console.log('No albums selected. Please configure settings.');
-    }
-});
-
-        // Handle keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            switch(e.key) {
-                case 'ArrowRight':
-                    showNextPhoto();
-                    break;
-                case 'Escape':
-                    window.location.href = '/settings.html';
-                    break;
-            }
-        });
-
-        // Handle window resize
-        let resizeTimeout;
-        window.addEventListener('resize', function() {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                const screen = getScreenProperties();
-                console.log(`Screen resized to ${screen.width}x${screen.height} (${screen.pixelRatio}x)`);
-                if (settings.resolution === 'auto') {
-                    document.querySelector('.photo-container').style.width = '100%';
-                    document.querySelector('.photo-container').style.height = '100%';
-                }
-                if (photoData.length > 0) {
-                    const selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
-                    fetchPhotos(selectedAlbums);
-                }
-            }, 1000);
-        });
-
-        // Cleanup function
-        function cleanup() {
+    // Add visibility change handling
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
             if (intervalId) clearInterval(intervalId);
             if (clockIntervalId) clearInterval(clockIntervalId);
             if (weatherIntervalId) clearInterval(weatherIntervalId);
-            if (weatherService) weatherService.clearCache();
-        }
-
-        // Add cleanup on page unload
-        window.addEventListener('unload', cleanup);
-
-        // Add visibility change handling
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                if (intervalId) clearInterval(intervalId);
-                if (clockIntervalId) clearInterval(clockIntervalId);
-                if (weatherIntervalId) clearInterval(weatherIntervalId);
-            } else {
-                loadSettings();
-                updateClock();
-                updateWeather();
-                if (photoData.length > 0) {
-                    intervalId = setInterval(showNextPhoto, settings.interval * 1000);
-                }
+        } else {
+            loadSettings();
+            updateClock();
+            updateWeather();
+            if (photoData.length > 0) {
+                intervalId = setInterval(showNextPhoto, settings.interval * 1000);
             }
-        });
+        }
+    });
 
     </script>
 </body>
 </html>
+
