@@ -111,9 +111,21 @@
 		</div>
         <div class="weather-animation"></div>
     </div>
+	
+	<div id="photo-info" class="photo-info-overlay hidden">
+		<div class="photo-details">
+			<h3 class="photo-title"></h3>
+			<p class="photo-location"></p>
+			<p class="photo-date"></p>
+			<p class="photo-camera"></p>
+			<div class="photo-tags"></div>
+		</div>
+	</div>
+
     <button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
 
     <script src="weather.js"></script>
+	<script src="/public/js/smartTimer.js"></script>
     <script>
 // Check authentication
 if (!localStorage.getItem('token')) {
@@ -568,6 +580,8 @@ async function preloadPhotos(photos) {
                 }
             }
         });
+
     </script>
+<script src="/js/features/smartTimer.js"></script>
 </body>
 </html>
