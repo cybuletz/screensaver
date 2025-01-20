@@ -112,7 +112,7 @@
         <div class="weather-animation"></div>
     </div>
 	
-button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
+<button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
 
     <script src="weather.js"></script>
 	<script src="/public/js/smartTimer.js"></script>
@@ -212,31 +212,71 @@ async function loadSettings() {
 			let currentPhotoStartTime = null;
                         const themeManager = new ThemeManager();
 			
-        function loadSettings() {
-            settings = JSON.parse(localStorage.getItem('screensaverSettings')) || {
-                resolution: 'auto',
-                fitMode: 'cover',
-                showClock: true,
-                clockStyle: 'digital',
-                clockFormat: '24',
-                clockPosition: 'bottom-right',
-                clockColor: '#ffffff',
-                clockSize: 'medium',
-                interval: 30,
-                transition: 'fade',
-                transitionDuration: 1,
-                shuffle: true,
-                enableSchedule: false,
-                startTime: '09:00',
-                endTime: '17:00',
-                daysActive: [1,2,3,4,5],
-                showWeather: true,
-                weatherCity: 'Bucharest',
-                weatherPosition: 'top-right',
-                showForecast: false
-            };
-            applySettings();
+async function loadSettings() {
+    try {
+        const response = await fetch('/api/settings', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = 'login.html';
+                return;
+            }
+            throw new Error('Failed to load settings');
         }
+        
+        settings = await response.json() || {
+            resolution: 'auto',
+            fitMode: 'cover',
+            showClock: true,
+            clockStyle: 'digital',
+            clockFormat: '24',
+            clockPosition: 'bottom-right',
+            clockColor: '#ffffff',
+            clockSize: 'medium',
+            interval: 30,
+            transition: 'fade',
+            transitionDuration: 1,
+            shuffle: true,
+            enableSchedule: false,
+            startTime: '09:00',
+            endTime: '17:00',
+            daysActive: [1,2,3,4,5],
+            showWeather: true,
+            weatherCity: 'Bucharest',
+            weatherPosition: 'top-right',
+            showForecast: false,
+            kioskMode: false
+        };
+        
+        if (settings.kioskMode) {
+            document.body.style.cursor = 'none';
+            document.addEventListener('contextmenu', e => e.preventDefault());
+        }
+        
+        // Load and apply theme
+        const themeResponse = await fetch('/api/themes', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (themeResponse.ok) {
+            const themes = await themeResponse.json();
+            const currentTheme = themes.find(t => t.isDefault) || themes[0];
+            if (currentTheme) {
+                themeManager.applyTheme(currentTheme);
+            }
+        }
+        
+        applySettings();
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+}
 
         function applySettings() {
             // Apply transition styles
@@ -541,19 +581,19 @@ async function preloadPhotos(photos) {
     smartTimer.startPhotoView(photoData[currentIndex].id);
 }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function () {
-            console.log('Initializing application...');
-            loadSettings();
-            const selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
-            
-            if (selectedAlbums.length > 0) {
-                console.log(`Loading ${selectedAlbums.length} selected albums`);
-                fetchPhotos(selectedAlbums);
-            } else {
-                console.log('No albums selected. Please configure settings.');
-            }
-        });
+// Initialize
+document.addEventListener('DOMContentLoaded', async function () {
+    console.log('Initializing application...');
+    await loadSettings();
+    const selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
+    
+    if (selectedAlbums.length > 0) {
+        console.log(`Loading ${selectedAlbums.length} selected albums`);
+        await fetchPhotos(selectedAlbums);
+    } else {
+        console.log('No albums selected. Please configure settings.');
+    }
+});
 
         // Handle keyboard shortcuts
         document.addEventListener('keydown', function(e) {
