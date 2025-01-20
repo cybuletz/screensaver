@@ -115,6 +115,63 @@
 
     <script src="weather.js"></script>
     <script>
+// Check authentication
+if (!localStorage.getItem('token')) {
+    window.location.href = 'login.html';
+}
+
+// Modify loadSettings function
+async function loadSettings() {
+    try {
+        const response = await fetch('/api/settings', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = 'login.html';
+                return;
+            }
+            throw new Error('Failed to load settings');
+        }
+        
+        const data = await response.json();
+        settings = data.settings || {
+            resolution: 'auto',
+            fitMode: 'cover',
+            showClock: true,
+            clockStyle: 'digital',
+            clockFormat: '24',
+            clockPosition: 'bottom-right',
+            clockColor: '#ffffff',
+            clockSize: 'medium',
+            interval: 30,
+            transition: 'fade',
+            transitionDuration: 1,
+            shuffle: true,
+            enableSchedule: false,
+            startTime: '09:00',
+            endTime: '17:00',
+            daysActive: [1,2,3,4,5],
+            showWeather: true,
+            weatherCity: 'Bucharest',
+            weatherPosition: 'top-right',
+            showForecast: false,
+            kioskMode: false
+        };
+        
+        if (settings.kioskMode) {
+            document.body.style.cursor = 'none';
+            document.addEventListener('contextmenu', e => e.preventDefault());
+        }
+        
+        applySettings();
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+}
         let currentIndex = 0;
         let photoData = [];
         let intervalId = null;
