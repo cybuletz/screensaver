@@ -66,6 +66,16 @@ const analyticsManager = new AnalyticsManager();
 const screensaverScheduler = new ScreensaverScheduler();
 
 const app = express();
+// Add CORS middleware
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://screensaver.cybu.site');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -276,10 +286,10 @@ app.get('/auth', (req, res) => {
             prompt: 'consent'
         });
         log(`Generated auth URL: ${authUrl}`);
-        res.redirect(authUrl);
+        res.json({ url: authUrl }); // Return URL instead of redirecting
     } catch (error) {
         log(`Error generating auth URL: ${error.message}`, true);
-        res.status(500).send('Error generating auth URL');
+        res.status(500).json({ error: 'Error generating auth URL' });
     }
 });
 
