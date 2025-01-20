@@ -217,40 +217,49 @@
             }
         }
 
-        async function updateWeather() {
-            if (!settings.showWeather) {
-                console.log('[Weather] Weather display is disabled');
-                return;
-            }
+		async function updateWeather() {
+			if (!settings.showWeather || !settings.weatherCity) {
+				console.log('[Weather] Weather display is disabled or no city configured');
+				return;
+			}
 
-            if (!weatherService) {
-                weatherService = new WeatherService();
-            }
+			if (!weatherService) {
+				console.log('[Weather] Initializing weather service...');
+				weatherService = new WeatherService();
+			}
 
-            try {
-                console.log('[Weather] Fetching weather data...');
-                const weatherData = await weatherService.getWeather(settings.weatherCity || 'Bucharest');
-                
-                let weatherOverlay = document.querySelector('.weather-overlay');
-                if (!weatherOverlay) {
-                    weatherOverlay = document.createElement('div');
-                    weatherOverlay.className = 'weather-overlay';
-                    document.body.appendChild(weatherOverlay);
-                }
+			try {
+				console.log(`[Weather] Fetching weather data for ${settings.weatherCity}...`);
+				const weatherData = await weatherService.getWeather(settings.weatherCity);
+				console.log('[Weather] Received weather data:', weatherData);
+				
+				let weatherOverlay = document.querySelector('.weather-overlay');
+				if (!weatherOverlay) {
+					console.log('[Weather] Creating weather overlay element');
+					weatherOverlay = document.createElement('div');
+					weatherOverlay.className = 'weather-overlay';
+					document.body.appendChild(weatherOverlay);
+				}
 
-                weatherOverlay.innerHTML = `
-                    <img src="https://openweathermap.org/img/w/${weatherData.icon}.png" alt="Weather">
-                    <div>
-                        <div>${weatherData.temperature}°C</div>
-                        <div>${weatherData.condition}</div>
-                    </div>
-                `;
-
-                console.log('[Weather] Weather display updated');
-            } catch (error) {
-                console.error('[Weather] Error updating weather:', error);
-            }
-        }
+				weatherOverlay.innerHTML = `
+					<img src="https://openweathermap.org/img/w/${weatherData.icon}.png" alt="Weather">
+					<div>
+						<div>${weatherData.temperature}°C</div>
+						<div>${weatherData.condition}</div>
+					</div>
+				`;
+				console.log('[Weather] Weather display updated successfully');
+			} catch (error) {
+				console.error('[Weather] Error updating weather:', error);
+				let weatherOverlay = document.querySelector('.weather-overlay');
+				if (!weatherOverlay) {
+					weatherOverlay = document.createElement('div');
+					weatherOverlay.className = 'weather-overlay';
+					document.body.appendChild(weatherOverlay);
+				}
+				weatherOverlay.innerHTML = `<div>Weather unavailable</div>`;
+			}
+		}
 
         function updateClock() {
             const clockOverlay = document.querySelector('.clock-overlay');
