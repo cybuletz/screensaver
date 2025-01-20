@@ -273,6 +273,12 @@ button.primary {
                 <span>Shuffle Photos</span>
             </div>
         </div>
+		
+		<div class="settings-group">
+    <h2>Google Authentication</h2>
+    <button id="google-auth-button" class="primary">Authenticate with Google</button>
+</div>
+		
 <div class="settings-group">
             <h2>Clock Settings</h2>
             <div class="checkbox-label">
@@ -695,6 +701,56 @@ document.addEventListener('DOMContentLoaded', () => {
     ]).catch(error => {
         console.error('Error during initialization:', error);
     });
+
+<script>
+    document.getElementById('google-auth-button').addEventListener('click', () => {
+        window.location.href = '/login'; // Redirect to the backend for OAuth authentication
+    });
+
+    async function saveSettings() {
+        const settings = {
+            resolution: document.getElementById('resolution').value,
+            fitMode: document.getElementById('fitMode').value,
+            showClock: document.getElementById('showClock').checked,
+            clockStyle: document.getElementById('clockStyle').value,
+            clockFormat: document.getElementById('clockFormat').value,
+            clockPosition: document.getElementById('clockPosition').value,
+            clockColor: document.getElementById('clockColor').value,
+            clockSize: document.getElementById('clockSize').value,
+            interval: parseInt(document.getElementById('interval').value),
+            transition: document.getElementById('transition').value,
+            transitionDuration: parseFloat(document.getElementById('transitionDuration').value),
+            shuffle: document.getElementById('shuffle').checked,
+            enableSchedule: document.getElementById('enableSchedule').checked,
+            startTime: document.getElementById('startTime').value,
+            endTime: document.getElementById('endTime').value,
+            daysActive: Array.from(document.querySelectorAll('.day-button.active'))
+                .map(button => parseInt(button.dataset.day)),
+            showWeather: document.getElementById('showWeather').checked,
+            weatherCity: document.getElementById('weatherCity').value,
+            weatherPosition: document.getElementById('weatherPosition').value,
+            showForecast: document.getElementById('showForecast').checked
+        };
+
+        localStorage.setItem('screensaverSettings', JSON.stringify(settings));
+        localStorage.setItem('selectedAlbums', JSON.stringify(selectedAlbums));
+
+        const response = await fetch('/save-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const result = await response.json();
+        const messageDiv = document.createElement('div');
+        messageDiv.className = result.success ? 'success' : 'error';
+        messageDiv.textContent = result.success ? 'Settings saved successfully!' : 'Failed to save settings.';
+        document.querySelector('.container').appendChild(messageDiv);
+        setTimeout(() => messageDiv.remove(), 3000);
+    }
+</script>
 
     // Set up day button toggling
     document.querySelectorAll('.day-button').forEach(button => {
