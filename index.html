@@ -112,20 +112,11 @@
         <div class="weather-animation"></div>
     </div>
 	
-	<div id="photo-info" class="photo-info-overlay hidden">
-		<div class="photo-details">
-			<h3 class="photo-title"></h3>
-			<p class="photo-location"></p>
-			<p class="photo-date"></p>
-			<p class="photo-camera"></p>
-			<div class="photo-tags"></div>
-		</div>
-	</div>
-
-    <button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
+button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
 
     <script src="weather.js"></script>
 	<script src="/public/js/smartTimer.js"></script>
+<script src="/public/js/themeManager.js"></script>
     <script>
 // Check authentication
 if (!localStorage.getItem('token')) {
@@ -135,19 +126,45 @@ if (!localStorage.getItem('token')) {
 // Modify loadSettings function
 async function loadSettings() {
     try {
-        const response = await fetch('/api/settings', {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
+        const [settingsResponse, themesResponse] = await Promise.all([
+            fetch('/api/settings', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }),
+            fetch('/api/themes', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+        ]);
         
-        if (!response.ok) {
-            if (response.status === 401) {
+        if (!settingsResponse.ok || !themesResponse.ok) {
+            if (settingsResponse.status === 401 || themesResponse.status === 401) {
                 window.location.href = 'login.html';
                 return;
             }
-            throw new Error('Failed to load settings');
+            throw new Error('Failed to load settings or themes');
         }
+        
+        const settingsData = await settingsResponse.json();
+        const themes = await themesResponse.json();
+        
+        settings = settingsData.settings || {
+            // ... your existing default settings ...
+        };
+        
+        // Apply current theme if exists
+        const currentTheme = themes.find(t => t.isDefault) || themes[0];
+        if (currentTheme) {
+            themeManager.applyTheme(currentTheme);
+        }
+        
+        applySettings();
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+}
         
         const data = await response.json();
         settings = data.settings || {
@@ -193,6 +210,7 @@ async function loadSettings() {
 			let weatherService = null;
 			const smartTimer = new SmartTimerClient();
 			let currentPhotoStartTime = null;
+                        const themeManager = new ThemeManager();
 			
         function loadSettings() {
             settings = JSON.parse(localStorage.getItem('screensaverSettings')) || {
