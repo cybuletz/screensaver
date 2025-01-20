@@ -374,7 +374,51 @@ button.primary {
                 <div class="loading">Loading albums...</div>
             </div>
         </div>
-
+<div class="settings-group">
+    <h2>Theme Settings</h2>
+    <select id="themeSelect">
+        <option value="">Select a theme...</option>
+    </select>
+    
+    <div id="themeEditor" style="display: none;">
+        <h4>Edit Theme</h4>
+        <div class="setting-group">
+            <label>Theme Name</label>
+            <input type="text" id="themeName">
+        </div>
+        
+        <div class="setting-group">
+            <label>Background Color</label>
+            <input type="color" id="backgroundColor">
+        </div>
+        
+        <div class="setting-group">
+            <label>Clock Color</label>
+            <input type="color" id="clockColor">
+        </div>
+        
+        <div class="setting-group">
+            <label>Clock Font</label>
+            <select id="clockFont">
+                <option value="Digital">Digital</option>
+                <option value="Arial">Arial</option>
+                <option value="Times New Roman">Times New Roman</option>
+            </select>
+        </div>
+        
+        <div class="setting-group">
+            <label>Weather Widget Position</label>
+            <select id="weatherPosition">
+                <option value="top-right">Top Right</option>
+                <option value="top-left">Top Left</option>
+                <option value="bottom-right">Bottom Right</option>
+                <option value="bottom-left">Bottom Left</option>
+            </select>
+        </div>
+        
+        <button onclick="saveTheme()" class="primary">Save Theme</button>
+    </div>
+</div>
         <div class="button-group">
             <button onclick="saveSettings()" class="primary">Save Settings</button>
             <button onclick="startScreensaver()" class="primary">Start Screensaver</button>
@@ -382,6 +426,8 @@ button.primary {
             <button onclick="clearCache()" class="danger">Clear Cache</button>
         </div>
     </div>
+	
+<script src="/public/js/themeManager.js"></script>
 
     <script>
         let selectedAlbums = [];
@@ -409,6 +455,18 @@ button.primary {
                 weatherPosition: 'top-right',
                 showForecast: false
             };
+
+			// Load themes
+			const themeManager = new ThemeManager();
+			themeManager.loadThemes().then(themes => {
+				const themeSelect = document.getElementById('themeSelect');
+				themeSelect.innerHTML = `
+					<option value="">Select a theme...</option>
+					${themes.map(theme => `
+						<option value="${theme._id}">${theme.name}</option>
+					`).join('')}
+				`;
+			});
 
             // Apply settings to form
             Object.keys(settings).forEach(key => {
