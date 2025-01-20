@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Photos Screensaver</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: black;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .photo-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        .photo {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition-property: opacity, transform, filter;
+        }
+        .photo.active {
+            opacity: 1;
+        }
+        .clock-overlay {
+            position: absolute;
+            padding: 20px;
+            color: white;
+            z-index: 1000;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            transition: opacity 0.3s;
+        }
+        .clock-overlay.top-left { top: 20px; left: 20px; }
+        .clock-overlay.top-right { top: 20px; right: 20px; }
+        .clock-overlay.bottom-left { bottom: 20px; left: 20px; }
+        .clock-overlay.bottom-right { bottom: 20px; right: 20px; }
+        .clock-overlay.center {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .clock-digital {
+            font-family: 'Digital', monospace;
+        }
+        .clock-analog {
+            width: 100px;
+            height: 100px;
+            border: 2px solid white;
+            border-radius: 50%;
+            position: relative;
+        }
+        .settings-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1001;
+        }
+        body:hover .settings-button {
+            opacity: 1;
+        }
+        .schedule-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .clock-overlay {
+                font-size: 80%;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="photo-container"></div>
+    <div class="clock-overlay"></div>
+    <button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
+
+    <script>
+        let currentIndex = 0;
+        let photoData = [];
+        let intervalId = null;
+        let clockIntervalId = null;
+        let settings = null;
+
+        function loadSettings() {
+            settings = JSON.parse(localStorage.getItem('screensaverSettings')) || {
+                resolution: 'auto',
+                fitMode: 'cover',
+                showClock: true,
+                clockStyle: 'digital',
+                clockFormat: '24',
+                clockPosition: 'bottom-right',
+                clockColor: '#ffffff',
+                clockSize: 'medium',
+                interval: 30,
+                transition: 'fade',
+                transitionDuration: 1,
+                shuffle: true,
+                enableSchedule: false,
+                startTime: '09:00',
+                endTime: '17:00',
+                daysActive: [1,2,3,4,5]
+            };
+            applySettings();
+        }
+
+        function applySettings() {
+            // Apply transition styles
+            const style = document.createElement('style');
+            let transitionStyle = '';
+            
+            switch(settings.transition) {
+                case 'fade':
+                    transitionStyle = `opacity ${settings.transitionDuration}s`;
+                    break;
+                case 'slide':
+                    transitionStyle = `opacity ${settings.transitionDuration}s, transform ${settings.transitionDuration}s`;
+                    break;
+                case 'zoom':
+                    transitionStyle = `opacity ${settings.transitionDuration}s, transform ${settings.transitionDuration}s`;
+                    break;
+                case 'blur':
+                    transitionStyle = `opacity ${settings.transitionDuration}s, filter ${settings.transitionDuration}s`;
+                    break;
+            }
+            
+            style.textContent = `.photo { transition: ${transitionStyle}; }`;
+            document.head.appendChild(style);
+
+            // Apply clock settings
+            const clockOverlay = document.querySelector('.clock-overlay');
+            clockOverlay.className = `clock-overlay ${settings.clockPosition}`;
+            clockOverlay.style.color = settings.clockColor;
+            clockOverlay.style.fontSize = 
+                settings.clockSize === 'small' ? '24px' : 
+                settings.clockSize === 'medium' ? '36px' : '48px';
+
+            // Initialize clock if enabled
+            if (settings.showClock) {
+                if (clockIntervalId) clearInterval(clockIntervalId);
+                updateClock();
+                clockIntervalId = setInterval(updateClock, 1000);
+            }
+
+            // Apply resolution settings
+            if (settings.resolution !== 'auto') {
+                const [width, height] = settings.resolution.split('x');
+                document.querySelector('.photo-container').style.width = `${width}px`;
+                document.querySelector('.photo-container').style.height = `${height}px`;
+            }
+        }
+
+        function updateClock() {
+            const clockOverlay = document.querySelector('.clock-overlay');
+            const now = new Date();
+            
+            if (settings.clockStyle === 'digital') {
+                const timeString = settings.clockFormat === '24' ? 
+                    now.toLocaleTimeString('en-US', { hour12: false }) :
+                    now.toLocaleTimeString('en-US', { hour12: true });
+                const dateString = now.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                clockOverlay.innerHTML = `
+                    <div class="clock-digital">
+                        <div>${timeString}</div>
+                        <div style="font-size: 0.5em">${dateString}</div>
+                    </div>
+                `;
+            } else {
+                // Simple analog clock representation
+                const hours = now.getHours() % 12;
+                const minutes = now.getMinutes();
+                clockOverlay.innerHTML = `
+                    <div class="clock-analog">
+                        <div class="hour-hand" style="transform: rotate(${(hours * 30) + (minutes / 2)}deg)"></div>
+                        <div class="minute-hand" style="transform: rotate(${minutes * 6}deg)"></div>
+                    </div>
+                `;
+            }
+        }
+
+// Add this function to detect screen properties
+function getScreenProperties() {
+    const dpr = window.devicePixelRatio || 1;
+    return {
+        width: Math.round(screen.width * dpr),
+        height: Math.round(screen.height * dpr),
+        pixelRatio: dpr
+    };
+}
+
+// Modify the preloadPhotos function
+async function preloadPhotos(photos) {
+    const container = document.querySelector('.photo-container');
+    container.innerHTML = '';
+
+    const screen = getScreenProperties();
+    const loadingPromises = [];
+
+    photos.forEach((photo, index) => {
+        const img = document.createElement('img');
+        img.className = 'photo';
+        img.style.objectFit = settings.fitMode;
+        
+        // Create a promise for each image load
+        const loadPromise = new Promise((resolve, reject) => {
+            img.onload = () => {
+                log(`Loaded photo ${index + 1}/${photos.length} (${img.naturalWidth}x${img.naturalHeight})`);
+                resolve();
+            };
+            img.onerror = () => {
+                log(`Failed to load photo ${index + 1}/${photos.length}`, true);
+                reject();
+            };
+        });
+        
+        loadingPromises.push(loadPromise);
+        
+        if (index === 0) {
+            img.classList.add('active');
+        }
+        
+        // Set image properties for quality
+        img.style.imageRendering = 'high-quality';
+        img.decoding = 'async';
+        img.loading = 'eager';
+        
+        // Set the source with screen-appropriate dimensions
+        img.src = photo.baseUrl;
+        
+        container.appendChild(img);
+    });
+
+    // Wait for the first few images to load before starting
+    try {
+        await Promise.all(loadingPromises.slice(0, 3));
+        log('Initial images loaded successfully');
+    } catch (error) {
+        log('Some initial images failed to load', true);
+    }
+
+    if (intervalId) clearInterval(intervalId);
+    intervalId = setInterval(showNextPhoto, settings.interval * 1000);
+}
+
+// Modify the fetchPhotos function
+async function fetchPhotos(albumIds) {
+    photoData = [];
+    const screen = getScreenProperties();
+    
+    for (const albumId of albumIds) {
+        try {
+            const response = await fetch(`/fetch-photos?albumId=${albumId}&width=${screen.width}&height=${screen.height}`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const photos = await response.json();
+            photoData.push(...photos);
+            log(`Fetched ${photos.length} photos from album ${albumId}`);
+        } catch (error) {
+            log(`Error fetching album ${albumId}: ${error.message}`, true);
+        }
+    }
+
+    if (settings.shuffle) {
+        photoData = shuffle(photoData);
+    }
+
+    if (photoData.length > 0) {
+        await preloadPhotos(photoData);
+    } else {
+        log('No photos were fetched from any album', true);
+    }
+}
+
+// Add a resize handler
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        const screen = getScreenProperties();
+        log(`Screen resized to ${screen.width}x${screen.height} (${screen.pixelRatio}x)`);
+        // Refetch photos with new dimensions
+        if (photoData.length > 0) {
+            fetchPhotos(JSON.parse(localStorage.getItem('selectedAlbums')) || []);
+        }
+    }, 1000);
+});
+
+        function checkSchedule() {
+            if (!settings.enableSchedule) return true;
+
+            const now = new Date();
+            const currentDay = now.getDay();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            
+            const [startHour, startMinute] = settings.startTime.split(':');
+            const [endHour, endMinute] = settings.endTime.split(':');
+            const startTimeMinutes = parseInt(startHour) * 60 + parseInt(startMinute);
+            const endTimeMinutes = parseInt(endHour) * 60 + parseInt(endMinute);
+
+            return settings.daysActive.includes(currentDay) && 
+                   currentTime >= startTimeMinutes && 
+                   currentTime <= endTimeMinutes;
+        }
+
+        function showScheduleMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'schedule-message';
+            messageDiv.textContent = 'Screensaver is scheduled to run during specific hours only.';
+            document.body.appendChild(messageDiv);
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function showNextPhoto() {
+            if (!checkSchedule()) {
+                showScheduleMessage();
+                return;
+            }
+
+            const photos = document.querySelectorAll('.photo');
+            const currentPhoto = photos[currentIndex];
+            const nextIndex = (currentIndex + 1) % photos.length;
+            const nextPhoto = photos[nextIndex];
+
+            // Apply transition effects
+            switch(settings.transition) {
+                case 'slide':
+                    nextPhoto.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        currentPhoto.style.transform = 'translateX(-100%)';
+                        nextPhoto.style.transform = 'translateX(0)';
+                    }, 50);
+                    break;
+                case 'zoom':
+                    nextPhoto.style.transform = 'scale(1.2)';
+                    setTimeout(() => {
+                        nextPhoto.style.transform = 'scale(1)';
+                    }, 50);
+                    break;
+                case 'blur':
+                    currentPhoto.style.filter = 'blur(10px)';
+                    nextPhoto.style.filter = 'blur(0)';
+                    break;
+            }
+
+            currentPhoto.classList.remove('active');
+            nextPhoto.classList.add('active');
+            currentIndex = nextIndex;
+        }
+
+        function preloadPhotos(photos) {
+            const container = document.querySelector('.photo-container');
+            container.innerHTML = '';
+
+            photos.forEach((photo, index) => {
+                const img = document.createElement('img');
+                
+                // Handle resolution
+                if (settings.resolution !== 'auto') {
+                    const [width] = settings.resolution.split('x');
+                    photo.baseUrl = `${photo.baseUrl}=w${width}`;
+                }
+
+                img.src = photo.baseUrl;
+                img.className = `photo`;
+                img.style.objectFit = settings.fitMode;
+                
+                if (index === 0) {
+                    img.classList.add('active');
+                }
+                container.appendChild(img);
+            });
+
+            if (intervalId) clearInterval(intervalId);
+            intervalId = setInterval(showNextPhoto, settings.interval * 1000);
+        }
+
+        async function fetchPhotos(albumIds) {
+            photoData = [];
+            for (const albumId of albumIds) {
+                const response = await fetch(`/fetch-photos?albumId=${albumId}`);
+                const photos = await response.json();
+                photoData.push(...photos);
+            }
+            if (settings.shuffle) {
+                photoData = shuffle(photoData);
+            }
+            preloadPhotos(photoData);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadSettings();
+            const selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
+            fetchPhotos(selectedAlbums);
+        });
+
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case 'ArrowRight':
+                    showNextPhoto();
+                    break;
+                case 'Escape':
+                    window.location.href = '/settings.html';
+                    break;
+            }
+        });
+
+        // Handle window resize for responsive behavior
+        window.addEventListener('resize', function() {
+            if (settings.resolution === 'auto') {
+                // Adjust photo container size if needed
+                document.querySelector('.photo-container').style.width = '100%';
+                document.querySelector('.photo-container').style.height = '100%';
+            }
+        });
+    </script>
+</body>
+</html>
