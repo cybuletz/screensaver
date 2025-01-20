@@ -184,14 +184,16 @@ async function loadSettings() {
         console.error('Error loading settings:', error);
     }
 }
-        let currentIndex = 0;
-        let photoData = [];
-        let intervalId = null;
-        let clockIntervalId = null;
-        let weatherIntervalId = null;
-        let settings = null;
-        let weatherService = null;
-
+			let currentIndex = 0;
+			let photoData = [];
+			let intervalId = null;
+			let clockIntervalId = null;
+			let weatherIntervalId = null;
+			let settings = null;
+			let weatherService = null;
+			const smartTimer = new SmartTimerClient();
+			let currentPhotoStartTime = null;
+			
         function loadSettings() {
             settings = JSON.parse(localStorage.getItem('screensaverSettings')) || {
                 resolution: 'auto',
@@ -474,41 +476,52 @@ async function preloadPhotos(photos) {
             return array;
         }
 
-        function showNextPhoto() {
-            if (!checkSchedule()) {
-                showScheduleMessage();
-                return;
-            }
+        async function showNextPhoto() {
+    if (!checkSchedule()) {
+        showScheduleMessage();
+        return;
+    }
 
-            const photos = document.querySelectorAll('.photo');
-            const currentPhoto = photos[currentIndex];
-            const nextIndex = (currentIndex + 1) % photos.length;
-            const nextPhoto = photos[nextIndex];
+    // End timing for current photo if exists
+    if (currentPhotoStartTime) {
+        const nextInterval = await smartTimer.endPhotoView();
+        if (intervalId) clearTimeout(intervalId);
+        intervalId = setTimeout(showNextPhoto, nextInterval);
+    }
 
-            switch(settings.transition) {
-                case 'slide':
-                    nextPhoto.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        currentPhoto.style.transform = 'translateX(-100%)';
-                        nextPhoto.style.transform = 'translateX(0)';
-                    }, 50);
-                    break;
-                case 'zoom':
-                    nextPhoto.style.transform = 'scale(1.2)';
-                    setTimeout(() => {
-                        nextPhoto.style.transform = 'scale(1)';
-                    }, 50);
-                    break;
-                case 'blur':
-                    currentPhoto.style.filter = 'blur(10px)';
-                    nextPhoto.style.filter = 'blur(0)';
-                    break;
-            }
+    const photos = document.querySelectorAll('.photo');
+    const currentPhoto = photos[currentIndex];
+    const nextIndex = (currentIndex + 1) % photos.length;
+    const nextPhoto = photos[nextIndex];
 
-            currentPhoto.classList.remove('active');
-            nextPhoto.classList.add('active');
-            currentIndex = nextIndex;
-        }
+    switch(settings.transition) {
+        case 'slide':
+            nextPhoto.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                currentPhoto.style.transform = 'translateX(-100%)';
+                nextPhoto.style.transform = 'translateX(0)';
+            }, 50);
+            break;
+        case 'zoom':
+            nextPhoto.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+                nextPhoto.style.transform = 'scale(1)';
+            }, 50);
+            break;
+        case 'blur':
+            currentPhoto.style.filter = 'blur(10px)';
+            nextPhoto.style.filter = 'blur(0)';
+            break;
+    }
+
+    currentPhoto.classList.remove('active');
+    nextPhoto.classList.add('active');
+    currentIndex = nextIndex;
+
+    // Start timing for new photo
+    currentPhotoStartTime = Date.now();
+    smartTimer.startPhotoView(photoData[currentIndex].id);
+}
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function () {
@@ -582,6 +595,5 @@ async function preloadPhotos(photos) {
         });
 
     </script>
-<script src="/js/features/smartTimer.js"></script>
 </body>
 </html>
