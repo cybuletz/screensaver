@@ -18,7 +18,7 @@ const transitions = require('./features/transitions');
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { PhotoInfo } = require('./features/photoInfo');
+
 const SmartTimer = require('./features/smartTimer');
 const { Theme } = require('./features/themes');
 const ScreensaverScheduler = require('./features/scheduler');
@@ -29,8 +29,7 @@ mongoose.connect('mongodb://localhost:27017/screensaver')
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-const analyticsManager = new AnalyticsManager();
-const screensaverScheduler = new ScreensaverScheduler();
+
 
 // User Schema
 const userSchema = new mongoose.Schema({
