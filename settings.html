@@ -275,9 +275,9 @@ button.primary {
         </div>
 		
 		<div class="settings-group">
-    <h2>Google Authentication</h2>
-    <button id="google-auth-button" class="primary">Authenticate with Google</button>
-</div>
+			<h2>Google Authentication</h2>
+			<button id="google-auth-button" class="primary">Authenticate with Google</button>
+		</div>
 		
 <div class="settings-group">
             <h2>Clock Settings</h2>
@@ -750,6 +750,67 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.container').appendChild(messageDiv);
         setTimeout(() => messageDiv.remove(), 3000);
     }
+
+    async function fetchAlbums() {
+        try {
+            const response = await fetch('/fetch-albums');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch albums: ${response.status} ${response.statusText}`);
+            }
+            const albums = await response.json();
+            if (!albums || albums.length === 0) {
+                throw new Error('No albums found');
+            }
+            displayAlbums(albums);
+        } catch (error) {
+            console.error('Error fetching albums:', error);
+            document.getElementById('albumList').innerHTML = 
+                `<div class="error">Failed to load albums: ${error.message}</div>`;
+        }
+    }
+
+    function displayAlbums(albums) {
+        const albumList = document.getElementById('albumList');
+        albumList.innerHTML = albums.map(album => `
+            <div class="album-item" onclick="toggleAlbum('${album.id}', this)">
+                <img src="${album.coverPhotoBaseUrl}" alt="${album.title}">
+                <div class="album-info">
+                    <div class="album-title">${album.title}</div>
+                    <div class="album-count">${album.mediaItemsCount} items</div>
+                </div>
+                <input type="checkbox" ${selectedAlbums.includes(album.id) ? 'checked' : ''}>
+            </div>
+        `).join('');
+    }
+
+    function toggleAlbum(albumId, element) {
+        const checkbox = element.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+
+        if (checkbox.checked) {
+            if (!selectedAlbums.includes(albumId)) {
+                selectedAlbums.push(albumId);
+            }
+        } else {
+            const index = selectedAlbums.indexOf(albumId);
+            if (index > -1) {
+                selectedAlbums.splice(index, 1);
+            }
+        }
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+        loadSettings();
+        fetchAlbums();
+
+        // Set up day button toggling
+        document.querySelectorAll('.day-button').forEach(button => {
+            button.addEventListener('click', () => {
+                button.classList.toggle('active');
+            });
+        });
+    });
 </script>
 
     // Set up day button toggling
