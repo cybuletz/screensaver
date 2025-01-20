@@ -432,7 +432,7 @@ button.primary {
     <script>
         let selectedAlbums = [];
         
-        function loadSettings() {
+async function loadSettings() {
             const settings = JSON.parse(localStorage.getItem('screensaverSettings')) || {
                 resolution: 'auto',
                 fitMode: 'cover',
@@ -467,7 +467,28 @@ button.primary {
 					`).join('')}
 				`;
 			});
-
+// Add theme selection handler
+document.getElementById('themeSelect').addEventListener('change', async (e) => {
+    const themeId = e.target.value;
+    if (themeId) {
+        const response = await fetch(`/api/themes/${themeId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        if (response.ok) {
+            const theme = await response.json();
+            document.getElementById('themeEditor').style.display = 'block';
+            document.getElementById('themeName').value = theme.name;
+            document.getElementById('backgroundColor').value = theme.styles.backgroundColor;
+            document.getElementById('clockColor').value = theme.styles.clockStyle.color;
+            document.getElementById('clockFont').value = theme.styles.clockStyle.font;
+            document.getElementById('weatherPosition').value = theme.styles.weatherWidget.position;
+        }
+    } else {
+        document.getElementById('themeEditor').style.display = 'none';
+    }
+});
             // Apply settings to form
             Object.keys(settings).forEach(key => {
                 const element = document.getElementById(key);
@@ -577,6 +598,54 @@ button.primary {
             setTimeout(() => successMessage.remove(), 3000);
         }
 
+async function saveTheme() {
+    const themeData = {
+        name: document.getElementById('themeName').value,
+        styles: {
+            backgroundColor: document.getElementById('backgroundColor').value,
+            clockStyle: {
+                color: document.getElementById('clockColor').value,
+                font: document.getElementById('clockFont').value,
+                size: document.getElementById('clockSize').value
+            },
+            weatherWidget: {
+                position: document.getElementById('weatherPosition').value,
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                textColor: '#ffffff'
+            }
+        }
+    };
+
+    try {
+        const response = await fetch('/api/themes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(themeData)
+        });
+
+        if (!response.ok) throw new Error('Failed to save theme');
+
+        const successMessage = document.createElement('div');
+        successMessage.className = 'success';
+        successMessage.textContent = 'Theme saved successfully!';
+        document.querySelector('.container').appendChild(successMessage);
+        setTimeout(() => successMessage.remove(), 3000);
+
+        // Reload themes
+        await loadSettings();
+    } catch (error) {
+        console.error('Error saving theme:', error);
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'error';
+        errorMessage.textContent = 'Failed to save theme';
+        document.querySelector('.container').appendChild(errorMessage);
+        setTimeout(() => errorMessage.remove(), 3000);
+    }
+}
+
         function startScreensaver() {
             window.location.href = '/';
         }
@@ -603,18 +672,19 @@ button.primary {
             }
         }
 
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSettings();
-            fetchAlbums();
+        
+// Initialize page
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadSettings();
+    await fetchAlbums();
 
-            // Set up day button toggling
-            document.querySelectorAll('.day-button').forEach(button => {
-                button.addEventListener('click', () => {
-                    button.classList.toggle('active');
-                });
-            });
+    // Set up day button toggling
+    document.querySelectorAll('.day-button').forEach(button => {
+        button.addEventListener('click', () => {
+            button.classList.toggle('active');
         });
+    });
+});
     </script>
 </body>
 </html>
