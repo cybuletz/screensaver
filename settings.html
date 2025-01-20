@@ -712,7 +712,7 @@ localStorage.setItem('screensaverSettings', JSON.stringify(settings));
         // Google Authentication handler
 document.getElementById('google-auth-button').addEventListener('click', async () => {
     try {
-        const response = await fetch('/auth/google/url', {
+        const response = await fetch('/auth', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
