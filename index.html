@@ -124,6 +124,8 @@
                 startTime: '09:00',
                 endTime: '17:00',
                 daysActive: [1,2,3,4,5]
+				showWeather: true,
+				weatherCity: 'Bucharest',
             };
             applySettings();
         }
@@ -449,5 +451,80 @@ window.addEventListener('resize', () => {
             }
         });
     </script>
+<script src="weather.js"></script>
+<script>
+    // Initialize weather service (will use server endpoint)
+async function updateWeather() {
+    console.log('[Weather] Starting weather update');
+    console.log('[Weather] Current settings:', settings);
+
+    if (!settings.showWeather) {
+        console.log('[Weather] Weather display is disabled in settings');
+        return;
+    }
+
+    try {
+        const city = settings.weatherCity || 'Bucharest';
+        console.log(`[Weather] Fetching weather for city: ${city}`);
+        
+        const response = await fetch(`/weather?city=${encodeURIComponent(city)}`);
+        console.log('[Weather] Server response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[Weather] Server error response:', errorText);
+            throw new Error('Weather fetch failed');
+        }
+        
+        const weatherData = await response.json();
+        console.log('[Weather] Received weather data:', weatherData);
+
+        let weatherOverlay = document.querySelector('.weather-overlay');
+        if (!weatherOverlay) {
+            console.log('[Weather] Creating new weather overlay element');
+            weatherOverlay = document.createElement('div');
+        } else {
+            console.log('[Weather] Using existing weather overlay element');
+        }
+        
+        weatherOverlay.className = 'weather-overlay';
+        const newHTML = `
+            <img src="http://openweathermap.org/img/w/${weatherData.icon}.png" alt="Weather">
+            <div>
+                <div>${weatherData.temperature}°C</div>
+                <div>${weatherData.condition}</div>
+            </div>
+        `;
+        console.log('[Weather] Setting overlay HTML:', newHTML);
+        weatherOverlay.innerHTML = newHTML;
+
+        if (!weatherOverlay.parentNode) {
+            console.log('[Weather] Appending weather overlay to document body');
+            document.body.appendChild(weatherOverlay);
+        }
+        
+        console.log('[Weather] Update completed successfully');
+    } catch (error) {
+        console.error('[Weather] Update failed:', error);
+    }
+}
+
+// Add initialization logging
+console.log('[Weather] Script loaded, checking settings');
+if (settings.showWeather) {
+    console.log('[Weather] Weather display is enabled, initializing');
+    updateWeather();
+    console.log('[Weather] Setting up refresh interval (30 minutes)');
+    setInterval(updateWeather, 30 * 60 * 1000);
+} else {
+    console.log('[Weather] Weather display is disabled in settings');
+}
+
+    // Update weather initially and every 30 minutes
+    if (settings.showWeather) {
+        updateWeather();
+        setInterval(updateWeather, 30 * 60 * 1000);
+    }
+</script>
 </body>
 </html>

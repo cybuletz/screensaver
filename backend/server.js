@@ -40,8 +40,8 @@ async function retryOperation(operation, maxRetries = 3) {
     }
 }
 
-const CLIENT_ID = 'dummy';
-const CLIENT_SECRET = 'dummy';
+const CLIENT_ID = '152249287118-fi7fcltpcs5dol05serg7frpql2ameiu.apps.googleusercontent.com';
+const CLIENT_SECRET = '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';
 const REDIRECT_URI = 'https://screensaver.cybu.site/oauth2callback';
 const SCOPES = [
     'https://www.googleapis.com/auth/photoslibrary.readonly',
@@ -49,6 +49,68 @@ const SCOPES = [
 ];
 
 const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
+
+// Add OpenWeatherMap configuration
+const OPENWEATHER_API_KEY = 'bf6447c19bd138d70db1e2709dc7009a'; // Replace with your OpenWeatherMap API key
+const DEFAULT_CITY = 'Bucharest';
+
+// Add new endpoint for weather
+app.get('/weather', async (req, res) => {
+    const city = req.query.city || DEFAULT_CITY;
+    try {
+        const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${OPENWEATHER_API_KEY}`
+        );
+        
+        if (!response.ok) {
+            throw new Error(`Weather API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        res.json({
+            temperature: Math.round(data.main.temp),
+            condition: data.weather[0].main,
+            icon: data.weather[0].icon
+        });
+    } catch (error) {
+        log(`Weather API error: ${error.message}`, true);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/weather', async (req, res) => {
+    const city = req.query.city || DEFAULT_CITY;
+    log(`Weather request received for city: ${city}`);
+    
+    try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${OPENWEATHER_API_KEY}`;
+        log(`Fetching weather from: ${url.replace(OPENWEATHER_API_KEY, 'API_KEY')}`);
+        
+        const response = await fetch(url);
+        log(`Weather API response status: ${response.status}`);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            log(`Weather API error response: ${errorText}`, true);
+            throw new Error(`Weather API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        log(`Weather data received: ${JSON.stringify(data)}`);
+        
+        const processedData = {
+            temperature: Math.round(data.main.temp),
+            condition: data.weather[0].main,
+            icon: data.weather[0].icon
+        };
+        log(`Processed weather data: ${JSON.stringify(processedData)}`);
+        
+        res.json(processedData);
+    } catch (error) {
+        log(`Weather API error: ${error.message}`, true);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 app.use(express.static(path.join(__dirname, '../')));
 
