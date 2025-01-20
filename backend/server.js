@@ -9,6 +9,53 @@ const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
 require('dotenv').config();
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+// Find this line:
+const app = express();
+
+// Add these lines right after it:
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/screensaver', {
+    // Remove the deprecated options
+    // useNewUrlParser and useUnifiedTopology are no longer needed
+});
+
+// User Schema
+const userSchema = new mongoose.Schema({
+    username: { type: String, unique: true },
+    password: String,
+    settings: {
+        resolution: { type: String, default: 'auto' },
+        fitMode: { type: String, default: 'cover' },
+        showClock: { type: Boolean, default: true },
+        clockStyle: { type: String, default: 'digital' },
+        clockFormat: { type: String, default: '24' },
+        clockPosition: { type: String, default: 'bottom-right' },
+        clockColor: { type: String, default: '#ffffff' },
+        clockSize: { type: String, default: 'medium' },
+        interval: { type: Number, default: 30 },
+        transition: { type: String, default: 'fade' },
+        transitionDuration: { type: Number, default: 1 },
+        shuffle: { type: Boolean, default: true },
+        enableSchedule: { type: Boolean, default: false },
+        startTime: { type: String, default: '09:00' },
+        endTime: { type: String, default: '17:00' },
+        daysActive: { type: [Number], default: [1,2,3,4,5] },
+        showWeather: { type: Boolean, default: true },
+        weatherCity: { type: String, default: 'London' },
+        weatherPosition: { type: String, default: 'top-right' },
+        showForecast: { type: Boolean, default: false },
+        kioskMode: { type: Boolean, default: false }
+    }
+});
+
+const User = mongoose.model('User', userSchema);
 
 const app = express();
 const PORT = 3000;
@@ -325,6 +372,86 @@ app.get('/health', (req, res) => {
     } catch (error) {
         log(`Health check failed: ${error.message}`, true);
         res.status(500).json({ status: 'error', message: error.message });
+    }
+});
+
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Authentication required' });
+    
+    jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+        req.user = user;
+        next();
+    });
+};
+
+// Register endpoint
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const existingUser = await User.findOne({ username });
+        
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+        
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = new User({
+            username,
+            password: hashedPassword
+        });
+        
+        await user.save();
+        res.status(201).json({ message: 'User created successfully' });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        const token = jwt.sign(
+            { username: user.username },
+            process.env.JWT_SECRET || 'your-secret-key',
+            { expiresIn: '24h' }
+        );
+        
+        res.json({
+            token,
+            settings: user.settings
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// Update settings endpoint
+app.put('/api/settings', authenticateToken, async (req, res) => {
+    try {
+        const { settings } = req.body;
+        const username = req.user.username;
+        
+        await User.findOneAndUpdate(
+            { username },
+            { $set: { settings } }
+        );
+        
+        res.json({ message: 'Settings updated successfully' });
+    } catch (error) {
+        console.error('Settings update error:', error);
+        res.status(500).json({ error: 'Failed to update settings' });
     }
 });
 
