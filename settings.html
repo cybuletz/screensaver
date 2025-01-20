@@ -566,21 +566,21 @@ document.getElementById('themeSelect').addEventListener('change', (e) => {
             `).join('');
         }
 
-        function toggleAlbum(albumId, element) {
-            const checkbox = element.querySelector('input[type="checkbox"]');
-            checkbox.checked = !checkbox.checked;
-            
-            if (checkbox.checked) {
-                if (!selectedAlbums.includes(albumId)) {
-                    selectedAlbums.push(albumId);
-                }
-            } else {
-                const index = selectedAlbums.indexOf(albumId);
-                if (index > -1) {
-                    selectedAlbums.splice(index, 1);
-                }
-            }
+async function toggleAlbum(albumId, element) {
+    const checkbox = element.querySelector('input[type="checkbox"]');
+    checkbox.checked = !checkbox.checked;
+    
+    if (checkbox.checked) {
+        if (!selectedAlbums.includes(albumId)) {
+            selectedAlbums.push(albumId);
         }
+    } else {
+        const index = selectedAlbums.indexOf(albumId);
+        if (index > -1) {
+            selectedAlbums.splice(index, 1);
+        }
+    }
+}
 
         function saveSettings() {
             const settings = {
