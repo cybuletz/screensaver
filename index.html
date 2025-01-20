@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Google Photos Screensaver</title>
+    <link rel="stylesheet" href="weather.css">
     <style>
         body, html {
             margin: 0;
@@ -86,36 +87,10 @@
             border-radius: 10px;
             text-align: center;
         }
-        .weather-overlay {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            z-index: 1000;
-            font-size: 16px;
-        }
-        .weather-overlay img {
-            width: 50px;
-            height: 50px;
-        }
         @media (max-width: 768px) {
             .clock-overlay {
                 font-size: 80%;
                 padding: 10px;
-            }
-            .weather-overlay {
-                font-size: 14px;
-                padding: 10px;
-            }
-            .weather-overlay img {
-                width: 30px;
-                height: 30px;
             }
         }
     </style>
@@ -123,10 +98,21 @@
 <body>
     <div class="photo-container"></div>
     <div class="clock-overlay"></div>
+    <div id="weather" class="weather-container">
+        <div class="weather-city"></div>
+        <div class="weather-current">
+            <div class="weather-temp"></div>
+            <img class="weather-icon" src="" alt="Weather">
+        </div>
+        <div class="weather-condition"></div>
+        <div id="weather-forecast" class="forecast-container">
+            <!-- Forecast will be inserted here -->
+        </div>
+        <div class="weather-animation"></div>
+    </div>
     <button class="settings-button" onclick="window.location.href='/settings.html'">Settings</button>
 
-    <script src="weather.js?v=2"></script>
-
+    <script src="weather.js"></script>
     <script>
         let currentIndex = 0;
         let photoData = [];
@@ -155,7 +141,9 @@
                 endTime: '17:00',
                 daysActive: [1,2,3,4,5],
                 showWeather: true,
-                weatherCity: 'Bucharest'
+                weatherCity: 'Bucharest',
+                weatherPosition: 'top-right',
+                showForecast: false
             };
             applySettings();
         }
@@ -179,8 +167,7 @@
                     transitionStyle = `opacity ${settings.transitionDuration}s, filter ${settings.transitionDuration}s`;
                     break;
             }
-            
-            style.textContent = `.photo { transition: ${transitionStyle}; }`;
+style.textContent = `.photo { transition: ${transitionStyle}; }`;
             document.head.appendChild(style);
 
             // Apply clock settings
@@ -190,6 +177,18 @@
             clockOverlay.style.fontSize = 
                 settings.clockSize === 'small' ? '24px' : 
                 settings.clockSize === 'medium' ? '36px' : '48px';
+
+            // Apply weather settings
+            const weatherContainer = document.getElementById('weather');
+            const forecastContainer = document.getElementById('weather-forecast');
+            
+            if (settings.showWeather) {
+                weatherContainer.style.display = 'block';
+                weatherContainer.className = `weather-container weather-${settings.weatherPosition}`;
+                forecastContainer.style.display = settings.showForecast ? 'flex' : 'none';
+            } else {
+                weatherContainer.style.display = 'none';
+            }
 
             // Initialize clock if enabled
             if (settings.showClock) {
@@ -203,11 +202,6 @@
                 if (weatherIntervalId) clearInterval(weatherIntervalId);
                 updateWeather();
                 weatherIntervalId = setInterval(updateWeather, 30 * 60 * 1000); // Update every 30 minutes
-            } else {
-                const weatherOverlay = document.querySelector('.weather-overlay');
-                if (weatherOverlay) {
-                    weatherOverlay.remove();
-                }
             }
 
             // Apply resolution settings
@@ -217,50 +211,6 @@
                 document.querySelector('.photo-container').style.height = `${height}px`;
             }
         }
-
-		async function updateWeather() {
-			if (!settings.showWeather || !settings.weatherCity) {
-				console.log('[Weather] Weather display is disabled or no city configured');
-				return;
-			}
-
-			if (!weatherService) {
-				console.log('[Weather] Initializing weather service...');
-				weatherService = new WeatherService();
-			}
-
-			try {
-				console.log(`[Weather] Fetching weather data for ${settings.weatherCity}...`);
-				const weatherData = await weatherService.getWeather(settings.weatherCity);
-				console.log('[Weather] Received weather data:', weatherData);
-				
-				let weatherOverlay = document.querySelector('.weather-overlay');
-				if (!weatherOverlay) {
-					console.log('[Weather] Creating weather overlay element');
-					weatherOverlay = document.createElement('div');
-					weatherOverlay.className = 'weather-overlay';
-					document.body.appendChild(weatherOverlay);
-				}
-
-				weatherOverlay.innerHTML = `
-					<img src="https://openweathermap.org/img/w/${weatherData.icon}.png" alt="Weather">
-					<div>
-						<div>${weatherData.temperature}°C</div>
-						<div>${weatherData.condition}</div>
-					</div>
-				`;
-				console.log('[Weather] Weather display updated successfully');
-			} catch (error) {
-				console.error('[Weather] Error updating weather:', error);
-				let weatherOverlay = document.querySelector('.weather-overlay');
-				if (!weatherOverlay) {
-					weatherOverlay = document.createElement('div');
-					weatherOverlay.className = 'weather-overlay';
-					document.body.appendChild(weatherOverlay);
-				}
-				weatherOverlay.innerHTML = `<div>Weather unavailable</div>`;
-			}
-		}
 
         function updateClock() {
             const clockOverlay = document.querySelector('.clock-overlay');
@@ -302,12 +252,10 @@
                 pixelRatio: dpr
             };
         }
-
-        async function preloadPhotos(photos) {
+async function preloadPhotos(photos) {
             const container = document.querySelector('.photo-container');
             container.innerHTML = '';
-
-            const screen = getScreenProperties();
+            
             const loadingPromises = [];
 
             photos.forEach((photo, index) => {
@@ -349,6 +297,52 @@
 
             if (intervalId) clearInterval(intervalId);
             intervalId = setInterval(showNextPhoto, settings.interval * 1000);
+        }
+
+        async function updateWeather() {
+            if (!settings.showWeather || !settings.weatherCity) {
+                console.log('[Weather] Weather display is disabled or no city configured');
+                return;
+            }
+
+            if (!weatherService) {
+                console.log('[Weather] Initializing weather service...');
+                weatherService = new WeatherService();
+            }
+
+            try {
+                console.log(`[Weather] Fetching weather data for ${settings.weatherCity}...`);
+                const weatherData = await weatherService.getWeather(settings.weatherCity);
+                console.log('[Weather] Received weather data:', weatherData);
+                
+                document.querySelector('.weather-city').textContent = settings.weatherCity;
+                document.querySelector('.weather-temp').textContent = `${weatherData.temperature}°C`;
+                document.querySelector('.weather-condition').textContent = weatherData.condition;
+                document.querySelector('.weather-icon').src = `https://openweathermap.org/img/w/${weatherData.icon}.png`;
+
+                // Update weather animation
+                const animationContainer = document.querySelector('.weather-animation');
+                const animationClass = weatherService.getWeatherAnimation(weatherData.condition);
+                animationContainer.className = `weather-animation ${animationClass}`;
+
+                // Update forecast if enabled
+                if (settings.showForecast) {
+                    const forecast = await weatherService.getForecast(settings.weatherCity);
+                    const forecastContainer = document.getElementById('weather-forecast');
+                    forecastContainer.innerHTML = forecast.map(day => `
+                        <div class="forecast-day">
+                            <div class="forecast-date">${new Date(day.date).toLocaleDateString('en-US', {weekday: 'short'})}</div>
+                            <div class="forecast-icon">
+                                <img src="https://openweathermap.org/img/w/${day.icon}.png" alt="${day.condition}">
+                            </div>
+                            <div class="forecast-temp">${day.temperature}°C</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('[Weather] Error updating weather:', error);
+                document.getElementById('weather').innerHTML = `<div class="weather-error">Weather unavailable</div>`;
+            }
         }
 
         async function fetchPhotos(albumIds) {
@@ -446,7 +440,7 @@
             currentIndex = nextIndex;
         }
 
-// Initialize
+        // Initialize
         document.addEventListener('DOMContentLoaded', function () {
             console.log('Initializing application...');
             loadSettings();
@@ -472,7 +466,7 @@
             }
         });
 
-        // Handle window resize for responsive behavior
+        // Handle window resize
         let resizeTimeout;
         window.addEventListener('resize', function() {
             clearTimeout(resizeTimeout);
@@ -483,20 +477,12 @@
                     document.querySelector('.photo-container').style.width = '100%';
                     document.querySelector('.photo-container').style.height = '100%';
                 }
-                // Refetch photos with new dimensions
                 if (photoData.length > 0) {
                     const selectedAlbums = JSON.parse(localStorage.getItem('selectedAlbums')) || [];
                     fetchPhotos(selectedAlbums);
                 }
             }, 1000);
         });
-
-        // Error handling and logging function
-        function logError(error, context = '') {
-            const timestamp = new Date().toISOString();
-            console.error(`[${timestamp}] Error${context ? ` in ${context}` : ''}: `, error);
-            // You could add error reporting to a service here
-        }
 
         // Cleanup function
         function cleanup() {
@@ -512,12 +498,10 @@
         // Add visibility change handling
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
-                // Page is hidden, pause updates
                 if (intervalId) clearInterval(intervalId);
                 if (clockIntervalId) clearInterval(clockIntervalId);
                 if (weatherIntervalId) clearInterval(weatherIntervalId);
             } else {
-                // Page is visible again, resume updates
                 loadSettings();
                 updateClock();
                 updateWeather();

@@ -2,7 +2,7 @@ class WeatherService {
     constructor() {
         this.cache = new Map();
         this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
-        console.log('[Weather] Service initialized (v2)'); // Added version number
+        console.log('[Weather] Service initialized (v3)');
     }
 
     async getWeather(city) {
@@ -20,10 +20,10 @@ class WeatherService {
         }
 
         console.log('[Weather] No cache or expired, fetching new data');
-		try {
-			const url = `/api/weather?city=${encodeURIComponent(city)}`;
-			console.log('[Weather] Full URL:', window.location.origin + url);  
-			console.log('[Weather] Fetching from URL:', url);
+        try {
+            const url = `/api/weather?city=${encodeURIComponent(city)}`;
+            console.log('[Weather] Full URL:', window.location.origin + url);  
+            console.log('[Weather] Fetching from URL:', url);
             
             const response = await fetch(url);
             console.log('[Weather] Response status:', response.status);
@@ -44,7 +44,8 @@ class WeatherService {
             const weather = {
                 temperature: data.temperature,
                 condition: data.condition,
-                icon: data.icon
+                icon: data.icon,
+                city: city // Adding city to the response
             };
             console.log('[Weather] Processed weather data:', weather);
 
@@ -59,6 +60,62 @@ class WeatherService {
             console.error('[Weather] Error fetching weather:', error);
             throw error;
         }
+    }
+
+    async getForecast(city) {
+        if (!city) {
+            throw new Error('City name is required');
+        }
+
+        console.log(`[Weather] Attempting to get forecast for city: ${city}`);
+        const cacheKey = `forecast_${city}`;
+        const cachedData = this.cache.get(cacheKey);
+        
+        if (cachedData && Date.now() - cachedData.timestamp < this.cacheTimeout) {
+            console.log('[Weather] Returning cached forecast data:', cachedData.data);
+            return cachedData.data;
+        }
+
+        console.log('[Weather] No cache or expired, fetching new forecast data');
+        try {
+            const url = `/api/forecast?city=${encodeURIComponent(city)}`;
+            console.log('[Weather] Full URL:', window.location.origin + url);
+            
+            const response = await fetch(url);
+            console.log('[Weather] Forecast response status:', response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[Weather] Forecast API Error:', errorText);
+                throw new Error(`Forecast API error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            this.cache.set(cacheKey, {
+                data: data,
+                timestamp: Date.now()
+            });
+
+            return data;
+        } catch (error) {
+            console.error('[Weather] Error fetching forecast:', error);
+            throw error;
+        }
+    }
+
+    getWeatherAnimation(condition, isNight = false) {
+        const animations = {
+            'Clear': isNight ? 'weather-clear-night' : 'weather-clear',
+            'Clouds': 'weather-cloudy',
+            'Rain': 'weather-rain',
+            'Drizzle': 'weather-rain',
+            'Thunderstorm': 'weather-storm',
+            'Snow': 'weather-snow',
+            'Mist': 'weather-mist',
+            'Fog': 'weather-mist',
+            'Haze': 'weather-mist'
+        };
+        return animations[condition] || 'weather-default';
     }
 
     clearCache() {

@@ -354,6 +354,56 @@ app.get('/api/weather', async (req, res) => {
     }
 });
 
+// Forecast API endpoint
+app.get('/api/forecast', async (req, res) => {
+    log('Forecast API endpoint called');
+    try {
+        const { city } = req.query;
+        if (!city) {
+            log('Forecast API called without city parameter', true);
+            return res.status(400).json({ error: 'City parameter is required' });
+        }
+
+        const apiKey = process.env.OPENWEATHER_API_KEY;
+        if (!apiKey) {
+            log('Weather API key not configured', true);
+            return res.status(500).json({ error: 'Weather API key not configured' });
+        }
+
+        log(`Fetching forecast data for city: ${city}`);
+        
+        // Use the existing retryOperation function for forecast API calls
+        const response = await retryOperation(async () => {
+            return await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}`);
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            log(`Forecast API Error Response: ${errorData}`, true);
+            throw new Error(`Forecast API request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        log(`Successfully fetched forecast data for ${city}`);
+
+        // Process forecast data - get next 3 days
+        const forecast = data.list
+            .filter((item, index) => index % 8 === 0) // Get one reading per day (every 24 hours)
+            .slice(0, 3) // Get next 3 days
+            .map(item => ({
+                date: item.dt * 1000, // Convert to milliseconds
+                temperature: Math.round(item.main.temp),
+                condition: item.weather[0].main,
+                icon: item.weather[0].icon
+            }));
+
+        res.json(forecast);
+    } catch (error) {
+        log(`Error fetching forecast: ${error.message}`, true);
+        res.status(500).json({ error: 'Failed to fetch forecast data' });
+    }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     log(`Server started on port ${PORT}`);
     
