@@ -456,39 +456,52 @@ async function loadSettings() {
                 showForecast: false
             };
 
-			// Load themes
-			const themeManager = new ThemeManager();
-			themeManager.loadThemes().then(themes => {
-				const themeSelect = document.getElementById('themeSelect');
-				themeSelect.innerHTML = `
-					<option value="">Select a theme...</option>
-					${themes.map(theme => `
-						<option value="${theme._id}">${theme.name}</option>
-					`).join('')}
-				`;
-			});
+// Load themes
+const themeManager = new ThemeManager();
+themeManager.loadThemes()
+    .then(themes => {
+        const themeSelect = document.getElementById('themeSelect');
+        themeSelect.innerHTML = `
+            <option value="">Select a theme...</option>
+            ${themes.map(theme => `
+                <option value="${theme._id}">${theme.name}</option>
+            `).join('')}
+        `;
+    })
+    .catch(error => {
+        console.error('Error loading themes:', error);
+    });
+			
 // Add theme selection handler
-document.getElementById('themeSelect').addEventListener('change', async (e) => {
+document.getElementById('themeSelect').addEventListener('change', (e) => {
     const themeId = e.target.value;
     if (themeId) {
-        const response = await fetch(`/api/themes/${themeId}`, {
+        fetch(`/api/themes/${themeId}`, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
-        });
-        if (response.ok) {
-            const theme = await response.json();
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch theme');
+            return response.json();
+        })
+        .then(theme => {
             document.getElementById('themeEditor').style.display = 'block';
             document.getElementById('themeName').value = theme.name;
             document.getElementById('backgroundColor').value = theme.styles.backgroundColor;
             document.getElementById('clockColor').value = theme.styles.clockStyle.color;
             document.getElementById('clockFont').value = theme.styles.clockStyle.font;
             document.getElementById('weatherPosition').value = theme.styles.weatherWidget.position;
-        }
+        })
+        .catch(error => {
+            console.error('Error loading theme:', error);
+            document.getElementById('themeEditor').style.display = 'none';
+        });
     } else {
         document.getElementById('themeEditor').style.display = 'none';
     }
 });
+
             // Apply settings to form
             Object.keys(settings).forEach(key => {
                 const element = document.getElementById(key);
@@ -674,9 +687,14 @@ async function saveTheme() {
 
         
 // Initialize page
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadSettings();
-    await fetchAlbums();
+document.addEventListener('DOMContentLoaded', () => {
+    // Use Promise.all to handle multiple async operations
+    Promise.all([
+        loadSettings(),
+        fetchAlbums()
+    ]).catch(error => {
+        console.error('Error during initialization:', error);
+    });
 
     // Set up day button toggling
     document.querySelectorAll('.day-button').forEach(button => {
