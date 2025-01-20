@@ -1,6 +1,5 @@
 class WeatherService {
-    constructor(apiKey) {
-        this.apiKey = apiKey;
+    constructor() {
         this.cache = new Map();
         this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
         console.log('[Weather] Service initialized');
@@ -18,7 +17,7 @@ class WeatherService {
 
         console.log('[Weather] No cache or expired, fetching new data');
         try {
-            const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${this.apiKey}`;
+            const url = `/weather?city=${encodeURIComponent(city)}`;
             console.log('[Weather] Fetching from URL:', url);
             
             const response = await fetch(url);
@@ -33,22 +32,41 @@ class WeatherService {
             const data = await response.json();
             console.log('[Weather] Raw API response:', data);
 
-            const weather = {
-                temperature: Math.round(data.main.temp),
-                condition: data.weather[0].main,
-                icon: data.weather[0].icon
-            };
-            console.log('[Weather] Processed weather data:', weather);
+            if (data.error) {
+                throw new Error(data.error);
+            }
 
             this.cache.set(cacheKey, {
-                data: weather,
+                data,
                 timestamp: Date.now()
             });
 
-            return weather;
+            console.log('[Weather] Weather data cached for:', city);
+            return data;
         } catch (error) {
             console.error('[Weather] Error fetching weather:', error);
             throw error;
         }
     }
+
+    clearCache() {
+        console.log('[Weather] Clearing weather cache');
+        this.cache.clear();
+    }
+
+    getCacheStatus() {
+        return {
+            size: this.cache.size,
+            entries: Array.from(this.cache.entries()).map(([key, value]) => ({
+                key,
+                age: Date.now() - value.timestamp,
+                data: value.data
+            }))
+        };
+    }
+}
+
+// Export the class for use in other files
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WeatherService;
 }

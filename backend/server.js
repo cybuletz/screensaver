@@ -51,33 +51,12 @@ const SCOPES = [
 const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 
 // Add OpenWeatherMap configuration
-const OPENWEATHER_API_KEY = 'bf6447c19bd138d70db1e2709dc7009a'; // Replace with your OpenWeatherMap API key
+const OPENWEATHER_API_KEY = 'bf6447c19bd138d70db1e2709dc7009a';
 const DEFAULT_CITY = 'Bucharest';
 
-// Add new endpoint for weather
-app.get('/weather', async (req, res) => {
-    const city = req.query.city || DEFAULT_CITY;
-    try {
-        const response = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${OPENWEATHER_API_KEY}`
-        );
-        
-        if (!response.ok) {
-            throw new Error(`Weather API error: ${response.status}`);
-        }
+app.use(express.static(path.join(__dirname, '../')));
 
-        const data = await response.json();
-        res.json({
-            temperature: Math.round(data.main.temp),
-            condition: data.weather[0].main,
-            icon: data.weather[0].icon
-        });
-    } catch (error) {
-        log(`Weather API error: ${error.message}`, true);
-        res.status(500).json({ error: error.message });
-    }
-});
-
+// Add weather endpoint with logging
 app.get('/weather', async (req, res) => {
     const city = req.query.city || DEFAULT_CITY;
     log(`Weather request received for city: ${city}`);
@@ -111,8 +90,6 @@ app.get('/weather', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-app.use(express.static(path.join(__dirname, '../')));
 
 app.get('/auth', (req, res) => {
     log('Auth route called');
