@@ -269,17 +269,23 @@
                 </div>
             </div>
         </div>
+		
+		
+<!-- Weather Settings -->
+<div class="settings-section">
+    <h2>Weather Settings</h2>
+    <div class="option-group">
+        <label for="showWeather">Show Weather:</label>
+        <input type="checkbox" id="showWeather" name="showWeather">
+        
+        <div class="sub-option">
+            <label for="weatherCity">Weather City:</label>
+            <input type="text" id="weatherCity" name="weatherCity" placeholder="Enter city name">
+        </div>
+    </div>
+</div>
 
-		<!-- Weather Selection -->
-		<div class="option-group">
-			<label for="showWeather">Show Weather:</label>
-			<input type="checkbox" id="showWeather" name="showWeather">
-			
-			<div class="sub-option">
-				<label for="weatherCity">Weather City:</label>
-				<input type="text" id="weatherCity" name="weatherCity" placeholder="Enter city name">
-			</div>
-		</div>
+
 
         <!-- Album Selection -->
         <div class="settings-section">
@@ -291,8 +297,8 @@
 
         <button type="submit">Save Settings</button>
     </form>
-
-// Previous HTML remains the same until the script section
+	
+<!-- Script section -->
 
 <script>
     async function fetchAlbums() {
@@ -355,6 +361,8 @@
             startTime: '09:00',
             endTime: '17:00',
             daysActive: [1,2,3,4,5]
+			showWeather: true,  
+			weatherCity: 'Bucharest' 
         };
 
         // Apply settings to form
@@ -427,6 +435,8 @@
                 endTime: document.getElementById('endTime').value,
                 daysActive: Array.from(document.querySelectorAll('input[name="daysActive"]:checked'))
                     .map(checkbox => parseInt(checkbox.value))
+				showWeather: document.getElementById('showWeather').checked,     // Add this
+				weatherCity: document.getElementById('weatherCity').value   
             };
             
             localStorage.setItem('screensaverSettings', JSON.stringify(settings));
