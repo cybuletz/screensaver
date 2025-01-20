@@ -1,0 +1,59 @@
+server {
+    listen 80;
+    server_name screensaver.cybu.site;
+
+    root /var/www/screensaver;
+    index index.html;
+
+    # Static files
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Weather API endpoint
+    location /api/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Existing endpoints with updated proxy settings
+    location /fetch-albums {
+        proxy_pass http://localhost:3000/fetch-albums;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /fetch-photos {
+        proxy_pass http://localhost:3000/fetch-photos;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /auth {
+        proxy_pass http://localhost:3000/auth;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /oauth2callback {
+        proxy_pass http://localhost:3000/oauth2callback;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
