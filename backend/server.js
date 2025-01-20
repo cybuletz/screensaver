@@ -1,4 +1,4 @@
-// Add DNS configuration at the top
+//Add DNS configuration at the top
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 dns.setServers(['8.8.8.8', '8.8.4.4']); // Use Google's DNS servers
@@ -8,6 +8,7 @@ const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
+require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
@@ -334,6 +335,51 @@ app.get('/health', (req, res) => {
     } catch (error) {
         log(`Health check failed: ${error.message}`, true);
         res.status(500).json({ status: 'error', message: error.message });
+    }
+});
+
+// Weather API endpoint
+app.get('/api/weather', async (req, res) => {
+    try {
+        const { city } = req.query;
+        if (!city) {
+            log('Weather API called without city parameter', true);
+            return res.status(400).json({ error: 'City parameter is required' });
+        }
+
+        const apiKey = process.env.OPENWEATHER_API_KEY;
+        if (!apiKey) {
+            log('Weather API key not configured', true);
+            return res.status(500).json({ error: 'Weather API key not configured' });
+        }
+
+        log(`Fetching weather data for city: ${city}`);
+        
+        // Use the existing retryOperation function for weather API calls
+        const response = await retryOperation(async () => {
+            return await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}`);
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            log(`Weather API Error Response: ${errorData}`, true);
+            throw new Error(`Weather API request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        log(`Successfully fetched weather data for ${city}`);
+
+        // Format the response
+        const weatherData = {
+            temperature: Math.round(data.main.temp),
+            condition: data.weather[0].main,
+            icon: data.weather[0].icon
+        };
+
+        res.json(weatherData);
+    } catch (error) {
+        log(`Error fetching weather: ${error.message}`, true);
+        res.status(500).json({ error: 'Failed to fetch weather data' });
     }
 });
 

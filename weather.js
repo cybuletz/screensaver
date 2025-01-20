@@ -21,7 +21,6 @@ class WeatherService {
 
         console.log('[Weather] No cache or expired, fetching new data');
         try {
-            // Using proxy endpoint on your server
             const url = `/api/weather?city=${encodeURIComponent(city)}`;
             console.log('[Weather] Fetching from URL:', url);
             
@@ -37,10 +36,14 @@ class WeatherService {
             const data = await response.json();
             console.log('[Weather] Raw API response:', data);
 
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
             const weather = {
-                temperature: Math.round(data.main.temp),
-                condition: data.weather[0].main,
-                icon: data.weather[0].icon
+                temperature: data.temperature,
+                condition: data.condition,
+                icon: data.icon
             };
             console.log('[Weather] Processed weather data:', weather);
 
@@ -49,6 +52,7 @@ class WeatherService {
                 timestamp: Date.now()
             });
 
+            console.log('[Weather] Weather data cached for:', city);
             return weather;
         } catch (error) {
             console.error('[Weather] Error fetching weather:', error);
@@ -57,6 +61,23 @@ class WeatherService {
     }
 
     clearCache() {
+        console.log('[Weather] Clearing weather cache');
         this.cache.clear();
     }
+
+    getCacheStatus() {
+        return {
+            size: this.cache.size,
+            entries: Array.from(this.cache.entries()).map(([key, value]) => ({
+                key,
+                age: Date.now() - value.timestamp,
+                data: value.data
+            }))
+        };
+    }
+}
+
+// Export the class for use in other files
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WeatherService;
 }
