@@ -110,8 +110,8 @@ async function retryOperation(operation, maxRetries = 3) {
     }
 }
 
-const CLIENT_ID = '152249287118-fi7fcltpcs5dol05serg7frpql2ameiu.apps.googleusercontent.com';
-const CLIENT_SECRET = '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';
+const CLIENT_ID = '';
+const CLIENT_SECRET = '';
 const REDIRECT_URI = 'https://screensaver.cybu.site/oauth2callback';
 const SCOPES = [
     'https://www.googleapis.com/auth/photoslibrary.readonly',
