@@ -20,6 +20,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const SmartTimer = require('./features/smartTimer');
+const smartTimer = new SmartTimer();
 const { Theme } = require('./features/themes');
 const ScreensaverScheduler = require('./features/scheduler');
 const { Analytics, AnalyticsManager } = require('./features/analytics');
@@ -244,6 +245,45 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Settings update error:', error);
         res.status(500).json({ error: 'Failed to update settings' });
+    }
+});
+
+// Get settings endpoint
+app.get('/api/settings', authenticateToken, async (req, res) => {
+    try {
+        const username = req.user.username;
+        const user = await User.findOne({ username });
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json({ settings: user.settings || {
+            resolution: 'auto',
+            fitMode: 'cover',
+            showClock: true,
+            clockStyle: 'digital',
+            clockFormat: '24',
+            clockPosition: 'bottom-right',
+            clockColor: '#ffffff',
+            clockSize: 'medium',
+            interval: 30,
+            transition: 'fade',
+            transitionDuration: 1,
+            shuffle: true,
+            enableSchedule: false,
+            startTime: '09:00',
+            endTime: '17:00',
+            daysActive: [1, 2, 3, 4, 5],
+            showWeather: true,
+            weatherCity: 'Bucharest',
+            weatherPosition: 'top-right',
+            showForecast: false,
+            kioskMode: false
+        }});
+    } catch (error) {
+        console.error('Settings fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch settings' });
     }
 });
 
@@ -519,6 +559,27 @@ app.get('/health', (req, res) => {
     } catch (error) {
         log(`Health check failed: ${error.message}`, true);
         res.status(500).json({ status: 'error', message: error.message });
+    }
+});
+
+// Smart Timer endpoint
+app.post('/api/viewing-stats', authenticateToken, async (req, res) => {
+    try {
+        const { photoId, viewDuration } = req.body;
+        const userId = req.user.username;
+
+        if (!photoId || typeof viewDuration !== 'number') {
+            return res.status(400).json({ 
+                error: 'Invalid parameters. Required: photoId (string) and viewDuration (number)' 
+            });
+        }
+
+        const nextInterval = await smartTimer.updateStats(userId, photoId, viewDuration);
+        
+        res.json({ nextInterval });
+    } catch (error) {
+        console.error('Smart timer error:', error);
+        res.status(500).json({ error: 'Failed to update viewing stats' });
     }
 });
 
